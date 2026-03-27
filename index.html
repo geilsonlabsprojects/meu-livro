@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cartas de um Diabo a seu Aprendiz - C.S. Lewis</title>
     
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1f2937">
+    <link rel="apple-touch-icon" href="https://img.icons8.com/color/512/open-book.png">
+    
     <!-- Tailwind CSS para estilização rápida e responsiva -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -71,9 +76,16 @@
                 </div>
             </div>
             
-            <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Alternar Modo Escuro">
-                <i class="fa-solid fa-moon text-gray-600 dark:text-gray-300" id="theme-icon"></i>
-            </button>
+            <div class="flex items-center space-x-2">
+                <!-- Botão de Instalação do PWA (Oculto por padrão, aparece se o navegador permitir instalação) -->
+                <button id="install-button" class="hidden px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors" title="Instalar Aplicativo">
+                    <i class="fa-solid fa-download mr-1"></i> Instalar
+                </button>
+                
+                <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Alternar Modo Escuro">
+                    <i class="fa-solid fa-moon text-gray-600 dark:text-gray-300" id="theme-icon"></i>
+                </button>
+            </div>
         </div>
     </header>
 
@@ -305,6 +317,51 @@
                 localStorage.setItem('theme', 'light');
                 themeIcon.classList.replace('fa-sun', 'fa-moon');
             }
+        });
+
+        // ==========================================
+        // LÓGICA DO PWA (Instalação e Service Worker)
+        // ==========================================
+        
+        // 1. Registrar o Service Worker (necessário para PWA e leitura Offline)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('ServiceWorker registrado! Escopo:', reg.scope))
+                    .catch(err => console.log('Falha no ServiceWorker:', err));
+            });
+        }
+
+        // 2. Lógica do Botão de Instalação
+        let deferredPrompt;
+        const installButton = document.getElementById('install-button');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Previne o Chrome de mostrar a barra inferior (infobar) automaticamente
+            e.preventDefault();
+            // Guarda o evento para disparar quando o usuário clicar no botão
+            deferredPrompt = e;
+            // Mostra o botão de instalar na interface
+            installButton.classList.remove('hidden');
+        });
+
+        installButton.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            // Mostra o prompt nativo de instalação do celular/PC
+            deferredPrompt.prompt();
+            // Espera o usuário aceitar ou recusar
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`Escolha do usuário: ${outcome}`);
+            // Limpa a variável
+            deferredPrompt = null;
+            // Esconde o botão novamente
+            installButton.classList.add('hidden');
+        });
+
+        window.addEventListener('appinstalled', () => {
+            // Se o app foi instalado com sucesso, esconde o botão
+            installButton.classList.add('hidden');
+            console.log('Aplicativo instalado com sucesso!');
         });
     </script>
 </body>
