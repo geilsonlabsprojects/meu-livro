@@ -1,0 +1,17 @@
+{
+  "name": "Cartas de um Diabo",
+  "short_name": "O Diabo",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#1f2937",
+  "description": "Leitor do livro Cartas de um Diabo a seu Aprendiz de C.S. Lewis",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/color/512/open-book.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
