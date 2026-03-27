@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cartas de um Diabo a seu Aprendiz - C.S. Lewis</title>
+    
+    <!-- Tailwind CSS para estilização rápida e responsiva -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Configuração do Tailwind para Modo Escuro -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        sepia: {
+                            100: '#f4ecd8',
+                            900: '#433422'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- FontAwesome para os ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- PDF.js da Mozilla -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+    <style>
+        /* Estilos personalizados para o canvas do PDF */
+        #pdf-render {
+            direction: ltr;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-radius: 4px;
+            max-width: 100%;
+            height: auto;
+            transition: all 0.3s ease;
+        }
+        
+        .dark #pdf-render {
+            /* Pequeno truque para escurecer o PDF no modo escuro (opcional, pode ser removido se preferir o PDF branco) */
+            filter: invert(0.9) hue-rotate(180deg) contrast(0.9);
+        }
+
+        /* Oculta as setas do input de número */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 h-screen flex flex-col font-sans transition-colors duration-300">
+
+    <!-- Cabeçalho Superior -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm z-10 flex-shrink-0">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-book-open text-blue-600 dark:text-blue-400 text-xl"></i>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight truncate max-w-[200px] sm:max-w-md">Cartas de um Diabo a seu Aprendiz</h1>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">C.S. Lewis</p>
+                </div>
+            </div>
+            
+            <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Alternar Modo Escuro">
+                <i class="fa-solid fa-moon text-gray-600 dark:text-gray-300" id="theme-icon"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Barra de Ferramentas (Controles) -->
+    <nav class="bg-gray-200 dark:bg-gray-700 border-b border-gray-300 dark:border-gray-600 flex-shrink-0">
+        <div class="max-w-5xl mx-auto px-2 py-2 flex flex-wrap justify-center sm:justify-between items-center gap-2">
+            
+            <!-- Zoom Controls -->
+            <div class="flex items-center bg-white dark:bg-gray-800 rounded-md shadow-sm overflow-hidden">
+                <button id="zoom-out" class="px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-600 border-r border-gray-200 dark:border-gray-600 transition" title="Reduzir Zoom">
+                    <i class="fa-solid fa-search-minus"></i>
+                </button>
+                <span id="zoom-level" class="px-3 text-sm font-medium w-16 text-center">100%</span>
+                <button id="zoom-in" class="px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-600 border-l border-gray-200 dark:border-gray-600 transition" title="Aumentar Zoom">
+                    <i class="fa-solid fa-search-plus"></i>
+                </button>
+            </div>
+
+            <!-- Page Controls -->
+            <div class="flex items-center bg-white dark:bg-gray-800 rounded-md shadow-sm overflow-hidden">
+                <button id="prev-page" class="px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-600 border-r border-gray-200 dark:border-gray-600 disabled:opacity-50 transition" title="Página Anterior">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                
+                <div class="flex items-center px-2 text-sm">
+                    <input type="number" id="page-num" class="w-12 text-center bg-transparent font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 rounded" value="1" min="1">
+                    <span class="mx-1 text-gray-500 dark:text-gray-400">/</span>
+                    <span id="page-count" class="font-medium">--</span>
+                </div>
+
+                <button id="next-page" class="px-4 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-600 border-l border-gray-200 dark:border-gray-600 disabled:opacity-50 transition" title="Próxima Página">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Área Principal de Leitura -->
+    <main class="flex-1 overflow-auto bg-gray-100 dark:bg-gray-900 relative" id="main-container">
+        <!-- Tela de Carregamento / Erro -->
+        <div id="status-message" class="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+            <i class="fa-solid fa-spinner fa-spin text-4xl text-blue-500 mb-4" id="loading-spinner"></i>
+            <p id="status-text" class="text-lg font-medium text-gray-600 dark:text-gray-400">Carregando o livro...</p>
+        </div>
+
+        <!-- Container do Canvas onde a página será desenhada -->
+        <div class="flex justify-center p-4 min-h-full items-start">
+            <canvas id="pdf-render" class="hidden bg-white"></canvas>
+        </div>
+    </main>
+
+    <script>
+        // Nome exato do arquivo que você fez upload
+        const url = './Cartas-de-Um-Diabo-a-Seu-Aprend-C.-S.-Lewis.pdf';
+
+        // Configuração do Worker do PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        let pdfDoc = null,
+            pageNum = 1,
+            pageIsRendering = false,
+            pageNumIsPending = null,
+            scale = 1.2; // Escala inicial (120%)
+
+        const canvas = document.getElementById('pdf-render');
+        const ctx = canvas.getContext('2d');
+        const statusMessage = document.getElementById('status-message');
+        const statusText = document.getElementById('status-text');
+        const loadingSpinner = document.getElementById('loading-spinner');
+
+        // Função para Renderizar a Página
+        const renderPage = num => {
+            pageIsRendering = true;
+
+            // Pega a página
+            pdfDoc.getPage(num).then(page => {
+                // Configura o viewport com base na escala
+                const viewport = page.getViewport({ scale });
+                
+                // Configura as dimensões do canvas baseadas na resolução da tela do dispositivo para maior nitidez
+                const outputScale = window.devicePixelRatio || 1;
+                
+                canvas.width = Math.floor(viewport.width * outputScale);
+                canvas.height = Math.floor(viewport.height * outputScale);
+                canvas.style.width = Math.floor(viewport.width) + "px";
+                canvas.style.height =  Math.floor(viewport.height) + "px";
+
+                const transform = outputScale !== 1 
+                  ? [outputScale, 0, 0, outputScale, 0, 0] 
+                  : null;
+
+                const renderCtx = {
+                    canvasContext: ctx,
+                    transform: transform,
+                    viewport: viewport
+                };
+
+                // Renderiza
+                page.render(renderCtx).promise.then(() => {
+                    pageIsRendering = false;
+                    
+                    // Mostra o canvas e esconde o status se for a primeira vez
+                    canvas.classList.remove('hidden');
+                    statusMessage.classList.add('hidden');
+
+                    if (pageNumIsPending !== null) {
+                        renderPage(pageNumIsPending);
+                        pageNumIsPending = null;
+                    }
+                });
+
+                // Atualiza o input de página atual
+                document.getElementById('page-num').value = num;
+                
+                // Atualiza o estado dos botões
+                document.getElementById('prev-page').disabled = num <= 1;
+                document.getElementById('next-page').disabled = num >= pdfDoc.numPages;
+                
+                // Rola para o topo ao mudar de página
+                document.getElementById('main-container').scrollTop = 0;
+            });
+        };
+
+        // Verifica se há páginas pendentes para renderizar
+        const queueRenderPage = num => {
+            if (pageIsRendering) {
+                pageNumIsPending = num;
+            } else {
+                renderPage(num);
+            }
+        };
+
+        // Exibe Página Anterior
+        const showPrevPage = () => {
+            if (pageNum <= 1) return;
+            pageNum--;
+            queueRenderPage(pageNum);
+        };
+
+        // Exibe Próxima Página
+        const showNextPage = () => {
+            if (pageNum >= pdfDoc.numPages) return;
+            pageNum++;
+            queueRenderPage(pageNum);
+        };
+
+        // Função para atualizar o zoom
+        const updateZoom = (newScale) => {
+            scale = newScale;
+            document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%';
+            if (pdfDoc) {
+                queueRenderPage(pageNum);
+            }
+        };
+
+        // Pegar o Documento PDF
+        pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
+            pdfDoc = pdfDoc_;
+            document.getElementById('page-count').textContent = pdfDoc.numPages;
+
+            // Renderiza a página inicial
+            renderPage(pageNum);
+        })
+        .catch(err => {
+            // Tratamento de erro (ex: arquivo não encontrado)
+            loadingSpinner.classList.replace('fa-spinner', 'fa-triangle-exclamation');
+            loadingSpinner.classList.remove('fa-spin');
+            loadingSpinner.classList.replace('text-blue-500', 'text-red-500');
+            
+            statusText.innerHTML = `
+                <span class="text-red-500 font-bold block mb-2">Erro ao carregar o livro.</span>
+                <span class="text-sm">Certifique-se de que o arquivo <strong>Cartas-de-Um-Diabo-a-Seu-Aprend-C.-S.-Lewis.pdf</strong><br>está na mesma pasta que este arquivo no seu GitHub.</span>
+            `;
+            console.error(err);
+        });
+
+        // Eventos de Botão
+        document.getElementById('prev-page').addEventListener('click', showPrevPage);
+        document.getElementById('next-page').addEventListener('click', showNextPage);
+        
+        // Atalhos de teclado (Setas)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') showNextPage();
+            if (e.key === 'ArrowLeft') showPrevPage();
+        });
+
+        // Eventos de Zoom
+        document.getElementById('zoom-in').addEventListener('click', () => {
+            if(scale >= 3) return;
+            updateZoom(scale + 0.2);
+        });
+        
+        document.getElementById('zoom-out').addEventListener('click', () => {
+            if(scale <= 0.6) return;
+            updateZoom(scale - 0.2);
+        });
+
+        // Evento de pular para página
+        const pageNumInput = document.getElementById('page-num');
+        pageNumInput.addEventListener('change', (e) => {
+            let num = parseInt(e.target.value);
+            if (num > 0 && num <= pdfDoc.numPages) {
+                pageNum = num;
+                queueRenderPage(pageNum);
+            } else {
+                e.target.value = pageNum; // Volta pro valor anterior se for inválido
+            }
+        });
+
+        // Alternância de Tema Escuro / Claro
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        const htmlElement = document.documentElement;
+
+        // Verifica preferência do sistema ou localStorage
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            htmlElement.classList.add('dark');
+            themeIcon.classList.replace('fa-moon', 'fa-sun');
+        } else {
+            htmlElement.classList.remove('dark');
+        }
+
+        themeToggleBtn.addEventListener('click', () => {
+            htmlElement.classList.toggle('dark');
+            if (htmlElement.classList.contains('dark')) {
+                localStorage.setItem('theme', 'dark');
+                themeIcon.classList.replace('fa-moon', 'fa-sun');
+            } else {
+                localStorage.setItem('theme', 'light');
+                themeIcon.classList.replace('fa-sun', 'fa-moon');
+            }
+        });
+    </script>
+</body>
+</html>
