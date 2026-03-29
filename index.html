@@ -1,482 +1,406 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-PT">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Minha Biblioteca Digital</title>
+    <title>Leitor Pro Ultra</title>
     
-    <!-- PWA Meta Tags -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#ffffff" id="meta-theme-color">
-    <link rel="apple-touch-icon" href="https://img.icons8.com/color/512/open-book.png">
+    <meta name="theme-color" content="#3b82f6" id="meta-theme-color">
     
-    <!-- Google Fonts -->
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     
-    <!-- Tailwind CSS -->
+    <!-- Scripts -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        serif: ['Playfair Display', 'serif'],
-                    },
-                    colors: {
-                        sepia: { bg: '#fbf0d9', text: '#5f4b32', bar: '#f3e5c8' }
-                    }
-                }
-            }
-        }
-    </script>
-
-    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- PDF.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
     <style>
-        body { transition: background-color 0.4s ease, color 0.4s ease; }
+        :root { 
+            --main-bg: #f8fafc; 
+            --main-text: #1e293b; 
+            --accent: #3b82f6; 
+            --glass-bg: rgba(255, 255, 255, 0.7);
+        }
         
-        #pdf-render {
-            direction: ltr;
-            max-width: 100%;
-            height: auto !important;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
-            transition: filter 0.4s ease, opacity 0.3s ease;
+        body { 
+            background-color: var(--main-bg); 
+            color: var(--main-text); 
+            transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.4s ease; 
+            font-family: 'Inter', sans-serif; 
+            -webkit-tap-highlight-color: transparent;
         }
 
-        body.theme-dark #pdf-render { filter: invert(0.85) hue-rotate(180deg) contrast(0.95); }
-        body.theme-sepia #pdf-render { filter: sepia(0.4) contrast(0.9) brightness(0.9); }
+        .font-serif { font-family: 'Playfair Display', serif; }
 
-        input[type="number"]::-webkit-inner-spin-button,
-        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        /* Renderização do PDF */
+        #pdf-render { 
+            max-width: 100%; 
+            height: auto !important; 
+            border-radius: 12px; 
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+            transition: filter 0.4s ease;
+        }
         
-        .glass {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(255,255,255,0.3);
-        }
-        body.theme-dark .glass {
-            background: rgba(31, 41, 55, 0.85);
-            border-color: rgba(255,255,255,0.05);
-        }
-        body.theme-sepia .glass {
-            background: rgba(243, 229, 200, 0.9);
-            border-color: rgba(95, 75, 50, 0.1);
+        /* Efeito de Vidro Dinâmico */
+        .glass { 
+            background: var(--glass-bg); 
+            backdrop-filter: blur(15px); 
+            -webkit-backdrop-filter: blur(15px); 
+            border-bottom: 1px solid rgba(128,128,128,0.1); 
         }
 
-        .page-anim { animation: fadeUp 0.4s ease-out forwards; }
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.5); border-radius: 4px; }
-        body.theme-dark ::-webkit-scrollbar-thumb { background: rgba(75, 85, 99, 0.5); }
-        
         .hidden-view { display: none !important; }
-        .book-card:hover .book-cover { transform: scale(1.05); }
+
+        /* Grid de Temas Otimizado */
+        .theme-dot { 
+            width: 100%; 
+            aspect-ratio: 1; 
+            border-radius: 50%; 
+            cursor: pointer; 
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 3px solid rgba(128,128,128,0.2);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .theme-dot:active { transform: scale(0.9); }
+        .theme-dot.active { 
+            border-color: var(--accent); 
+            transform: scale(1.1);
+            box-shadow: 0 0 0 2px var(--main-bg), 0 0 0 4px var(--accent);
+        }
+
+        /* Animações */
+        .view-transition { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Scrollbar Dinâmica */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.3); border-radius: 10px; }
     </style>
 </head>
+<body class="h-screen flex flex-col overflow-hidden">
 
-<body class="bg-slate-50 text-slate-800 h-screen flex flex-col font-sans overflow-hidden theme-light">
-
-    <!-- ======================================================= -->
-    <!-- TELA 1: VITRINE (BIBLIOTECA)                            -->
-    <!-- ======================================================= -->
-    <div id="view-library" class="flex flex-col h-full w-full overflow-y-auto">
-        <header class="glass sticky top-0 z-30 shadow-sm">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-lg">
-                        <i class="fa-solid fa-book-open text-lg"></i>
-                    </div>
-                    <div>
-                        <h1 class="font-serif font-bold text-xl leading-tight">Clube do Livro</h1>
-                        <p class="text-[11px] uppercase tracking-wider text-gray-500 font-medium">Sua estante virtual</p>
-                    </div>
+    <!-- HEADER PRINCIPAL -->
+    <header class="glass sticky top-0 z-50 h-16 flex items-center shrink-0">
+        <div class="max-w-7xl mx-auto px-4 w-full flex justify-between items-center">
+            <div class="flex items-center gap-3 cursor-pointer group" onclick="voltarParaHome()">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform">
+                    <i class="fa-solid fa-book-bookmark"></i>
                 </div>
-                
-                <div class="flex items-center space-x-2 sm:space-x-4">
-                    <!-- Botão Instalar PWA -->
-                    <button id="install-button" class="hidden flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-medium rounded-full shadow-lg transition-transform hover:scale-105">
-                        <i class="fa-solid fa-download"></i> <span class="hidden sm:inline">Instalar App</span>
-                    </button>
-
-                    <!-- Seletor de Temas -->
-                    <div class="flex bg-gray-200/50 dark:bg-gray-700/50 p-1 rounded-full border border-gray-300/30">
-                        <button class="theme-btn w-8 h-8 rounded-full flex items-center justify-center text-gray-600 hover:bg-white transition-all" data-theme="light"><i class="fa-solid fa-sun text-sm"></i></button>
-                        <button class="theme-btn w-8 h-8 rounded-full flex items-center justify-center text-yellow-700 hover:bg-[#fbf0d9] transition-all" data-theme="sepia"><i class="fa-solid fa-mug-hot text-sm"></i></button>
-                        <button class="theme-btn w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-800 hover:text-white transition-all" data-theme="dark"><i class="fa-solid fa-moon text-sm"></i></button>
-                    </div>
+                <div>
+                    <h1 class="font-serif font-bold text-lg leading-none">Minha Estante</h1>
+                    <span class="text-[10px] uppercase tracking-[0.2em] opacity-50">Premium Reader</span>
                 </div>
             </div>
-        </header>
 
-        <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-8">
-            <div class="mb-8">
-                <h2 class="text-2xl font-serif font-bold dark:text-white">Destaques da Semana</h2>
-                <p class="text-gray-500 dark:text-gray-400 mt-1">Escolha um livro para ler online ou compre a versão física para a sua coleção.</p>
+            <div class="flex items-center gap-2">
+                <button id="install-button" class="hidden px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-full shadow-md transition-all active:scale-95">
+                    <i class="fa-solid fa-download mr-1"></i> Instalar
+                </button>
+                <button onclick="abrirConfig()" class="w-10 h-10 rounded-full hover:bg-black/5 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-palette text-lg"></i>
+                </button>
             </div>
-
-            <!-- Grid onde os livros do JSON serão injetados -->
-            <div id="books-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                <!-- Loader inicial da biblioteca -->
-                <div class="col-span-full flex justify-center py-12">
-                    <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-500"></i>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- ======================================================= -->
-    <!-- TELA 2: LEITOR DE PDF (ESCONDIDO POR PADRÃO)            -->
-    <!-- ======================================================= -->
-    <div id="view-reader" class="hidden-view flex flex-col h-full w-full relative">
-        <div id="loader" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white dark:bg-gray-900 transition-opacity duration-500">
-            <div class="relative w-16 h-16">
-                <i class="fa-solid fa-book-journal-whills text-4xl text-blue-600 dark:text-blue-400 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></i>
-                <div class="absolute inset-0 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
-            </div>
-            <h2 class="mt-6 font-serif text-xl font-semibold text-gray-800 dark:text-gray-200">Preparando sua leitura...</h2>
-            <p id="loader-author" class="text-sm text-gray-500 mt-2">Carregando</p>
         </div>
+    </header>
 
-        <header class="glass absolute top-0 w-full z-40 shadow-sm transition-colors duration-300">
-            <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex justify-between items-center">
-                <div class="flex items-center gap-4">
-                    <button onclick="fecharLeitor()" class="w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 transition">
-                        <i class="fa-solid fa-arrow-left"></i>
-                    </button>
-                    <div class="hidden sm:block">
-                        <h1 id="reader-title" class="font-serif font-semibold text-lg leading-tight truncate max-w-md">Título do Livro</h1>
-                        <p id="reader-author" class="text-[11px] uppercase tracking-wider text-gray-500 font-medium">Autor</p>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <a id="reader-buy-btn" href="#" target="_blank" class="flex items-center gap-2 px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-full shadow-md transition-transform hover:scale-105">
-                        <i class="fa-solid fa-cart-shopping"></i> <span class="hidden sm:inline">Comprar</span>
-                    </a>
+    <!-- TELA: BIBLIOTECA -->
+    <main id="view-library" class="flex-1 overflow-y-auto px-4 py-8 view-transition">
+        <div class="max-w-7xl mx-auto">
+            <header class="mb-10">
+                <h2 class="text-4xl font-serif font-bold mb-2">Continuar Leitura</h2>
+                <div class="h-1 w-20 bg-blue-600 rounded-full"></div>
+            </header>
+            
+            <div id="books-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+                <div class="col-span-full py-20 text-center">
+                    <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-500 opacity-20"></i>
                 </div>
             </div>
-        </header>
+        </div>
+    </main>
 
-        <main class="flex-1 overflow-y-auto pt-20 pb-24 relative" id="main-container">
-            <div class="flex justify-center px-4 sm:px-8 min-h-full items-start">
-                <canvas id="pdf-render" class="bg-white opacity-0"></canvas>
+    <!-- TELA: LEITOR -->
+    <div id="view-reader" class="hidden-view fixed inset-0 z-[60] bg-[var(--main-bg)] flex flex-col view-transition">
+        <header class="glass h-16 flex justify-between items-center px-4 shrink-0">
+            <button onclick="fecharLeitor()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/10 transition">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <div class="text-center flex-1 truncate px-4">
+                <h3 id="reader-title" class="text-sm font-bold truncate opacity-80">A carregar...</h3>
+            </div>
+            <div class="flex items-center gap-1">
+                <button onclick="abrirConfig()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/10 transition">
+                    <i class="fa-solid fa-palette"></i>
+                </button>
+                <button onclick="toggleZoom()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/10 transition">
+                    <i class="fa-solid fa-magnifying-glass-plus"></i>
+                </button>
+            </div>
+        </header>
+        
+        <main class="flex-1 overflow-y-auto pt-6 pb-24 relative" id="reader-scroll">
+            <div id="loader-reader" class="absolute inset-0 flex items-center justify-center bg-[var(--main-bg)] z-10 transition-opacity duration-300">
+                <i class="fa-solid fa-compass fa-spin text-4xl text-blue-500"></i>
+            </div>
+            <div class="flex justify-center px-4">
+                <canvas id="pdf-render" class="opacity-0"></canvas>
             </div>
         </main>
 
-        <nav class="glass absolute bottom-0 w-full z-40 transition-colors duration-300">
-            <div class="h-1 w-full bg-gray-200 dark:bg-gray-700 absolute top-0 left-0">
-                <div id="read-progress" class="h-full bg-blue-500 transition-all duration-300" style="width: 0%"></div>
-            </div>
-            <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
-                <div class="flex items-center gap-1 sm:gap-2">
-                    <button id="zoom-out" class="w-10 h-10 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-200/50 dark:text-gray-300 dark:hover:bg-gray-700/50 transition">
-                        <i class="fa-solid fa-minus text-sm"></i>
-                    </button>
-                    <span id="zoom-level" class="text-xs font-medium w-12 text-center text-gray-500 uppercase tracking-wider">120%</span>
-                    <button id="zoom-in" class="w-10 h-10 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-200/50 dark:text-gray-300 dark:hover:bg-gray-700/50 transition">
-                        <i class="fa-solid fa-plus text-sm"></i>
-                    </button>
+        <nav class="glass absolute bottom-0 w-full h-20 flex items-center justify-center px-4 pb-2">
+            <div class="bg-black/5 rounded-full p-1.5 flex items-center gap-1 shadow-inner">
+                <button id="prev-page" class="w-12 h-12 rounded-full bg-white/10 shadow-sm flex items-center justify-center disabled:opacity-30 transition-transform active:scale-90">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <div class="flex items-center px-4 gap-2">
+                    <input type="number" id="page-num" class="w-12 text-center bg-transparent font-bold text-lg outline-none" value="1">
+                    <span class="opacity-30 font-light text-xl">/</span>
+                    <span id="page-count" class="font-medium opacity-60">0</span>
                 </div>
-                <div class="flex items-center bg-gray-200/50 dark:bg-gray-700/50 rounded-full p-1 border border-gray-300/30">
-                    <button id="prev-page" class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm disabled:opacity-30 transition">
-                        <i class="fa-solid fa-arrow-left"></i>
-                    </button>
-                    <div class="flex items-center px-3 text-sm font-medium">
-                        <input type="number" id="page-num" class="w-10 text-center bg-transparent focus:outline-none focus:ring-0 p-0 dark:text-white" value="1" min="1">
-                        <span class="mx-1 text-gray-400">de</span>
-                        <span id="page-count" class="text-gray-600 dark:text-gray-300">--</span>
-                    </div>
-                    <button id="next-page" class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white dark:hover:bg-gray-600 hover:shadow-sm disabled:opacity-30 transition">
-                        <i class="fa-solid fa-arrow-right"></i>
-                    </button>
-                </div>
+                <button id="next-page" class="w-12 h-12 rounded-full bg-white/10 shadow-sm flex items-center justify-center disabled:opacity-30 transition-transform active:scale-90">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
             </div>
         </nav>
     </div>
 
+    <!-- MODAL: TEMAS E CONFIGURAÇÕES -->
+    <div id="modal-config" class="hidden-view fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-4">
+        <div class="bg-[var(--main-bg)] w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/10">
+            <div class="p-8 border-b border-black/5 flex justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-serif font-bold">Aparência</h2>
+                    <p class="text-xs opacity-50 uppercase tracking-widest mt-1">Escolha o seu estilo</p>
+                </div>
+                <button onclick="abrirConfig()" class="w-12 h-12 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-8 space-y-10 overflow-y-auto max-h-[65vh]">
+                <button onclick="applyTheme('system')" class="w-full p-5 rounded-2xl bg-blue-600 text-white flex items-center justify-between group relative overflow-hidden shadow-lg shadow-blue-500/20">
+                    <div class="relative z-10 flex items-center gap-4">
+                        <i class="fa-solid fa-circle-half-stroke text-xl"></i>
+                        <span class="font-bold">Modo Automático</span>
+                    </div>
+                    <i class="fa-solid fa-check opacity-50 group-hover:opacity-100 transition-opacity"></i>
+                </button>
+
+                <div>
+                    <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 mb-6">Paletas Disponíveis</h3>
+                    <div id="theme-grid" class="grid grid-cols-6 gap-6">
+                        <!-- Temas aqui -->
+                    </div>
+                </div>
+
+                <div class="pt-6 border-t border-black/5">
+                    <button onclick="limparTudo()" class="w-full p-4 rounded-2xl bg-red-500/10 text-red-500 font-bold flex items-center justify-center gap-3 hover:bg-red-500/20 transition-colors">
+                        <i class="fa-solid fa-trash-can"></i>
+                        Limpar Dados do Site
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // ==========================================
-        // 1. CONFIGURAÇÃO DOS LIVROS (DIRETÓRIOS)
-        // ==========================================
-        // Escreva aqui o NOME EXATO das pastas que você criou dentro da pasta "pdfs"
-        const pastasDosLivros = [
-            "Cartas-de-Um-Diabo-a-Seu-Aprend-C.-S.-Lewis",
-            // "O-Pequeno-Principe",  <-- Adicione mais pastas aqui quando criar
-            // "A-Arte-da-Guerra"
+        const pastasDosLivros = ["Cartas-de-Um-Diabo-a-Seu-Aprend-C.-S.-Lewis"];
+
+        const themes = [
+            { id: 'light', name: 'Alvo', bg: '#ffffff', text: '#1e293b', pdf: 'none' },
+            { id: 'slate', name: 'Cinza', bg: '#f1f5f9', text: '#334155', pdf: 'none' },
+            { id: 'cream', name: 'Creme', bg: '#fffdf5', text: '#433422', pdf: 'sepia(0.2)' },
+            { id: 'sepia', name: 'Sépia', bg: '#f4ecd8', text: '#5b4636', pdf: 'sepia(0.6) contrast(0.9)' },
+            { id: 'vintage', name: 'Antigo', bg: '#e5d1b8', text: '#3e2a14', pdf: 'sepia(0.9) brightness(0.8)' },
+            { id: 'rose', name: 'Rosé', bg: '#fff1f2', text: '#881337', pdf: 'none' },
+            { id: 'mint', name: 'Menta', bg: '#f0fdf4', text: '#166534', pdf: 'none' },
+            { id: 'sky', name: 'Céu', bg: '#f0f9ff', text: '#075985', pdf: 'none' },
+            { id: 'dim', name: 'Suave', bg: '#15202b', text: '#ffffff', pdf: 'invert(0.9) hue-rotate(180deg)' },
+            { id: 'night', name: 'Noite', bg: '#0f172a', text: '#cbd5e1', pdf: 'invert(0.9) contrast(0.8)' },
+            { id: 'obsidian', name: 'Negro', bg: '#020617', text: '#94a3b8', pdf: 'invert(1) contrast(0.8)' },
+            { id: 'cyber', name: 'Cyber', bg: '#000000', text: '#00ff41', pdf: 'invert(1) hue-rotate(120deg)' }
         ];
 
         let listaDeLivros = [];
+        let currentPdf = null, pageNum = 1, pdfScale = 1.3, isRendering = false, currentBookId = null;
 
-        // ==========================================
-        // 2. CARREGAR DADOS DOS ARQUIVOS JSON
-        // ==========================================
+        window.onload = () => {
+            initThemeGrid();
+            carregarBiblioteca();
+            applySavedTheme();
+            setupPWA();
+        };
+
         async function carregarBiblioteca() {
             const grid = document.getElementById('books-grid');
-            listaDeLivros = []; // Resetar
-
+            listaDeLivros = [];
             for (const pasta of pastasDosLivros) {
                 try {
-                    // Tenta buscar o arquivo dados.json dentro da pasta específica
-                    const response = await fetch(`pdfs/${pasta}/dados.json`);
-                    if (response.ok) {
-                        const livroData = await response.json();
-                        // Salva o caminho da pasta para sabermos onde achar o PDF depois
-                        livroData.caminhoPasta = `pdfs/${pasta}/`; 
-                        listaDeLivros.push(livroData);
-                    } else {
-                        console.warn(`dados.json não encontrado na pasta: ${pasta}`);
+                    const res = await fetch(`pdfs/${pasta}/dados.json`);
+                    if(res.ok) {
+                        const data = await res.json();
+                        data.folder = `pdfs/${pasta}/`;
+                        listaDeLivros.push(data);
                     }
-                } catch (error) {
-                    console.error(`Erro ao acessar pasta ${pasta}:`, error);
-                }
+                } catch(e) {}
             }
-
-            renderizarVitrine();
+            renderVitrine();
         }
 
-        function renderizarVitrine() {
+        function renderVitrine() {
             const grid = document.getElementById('books-grid');
-            grid.innerHTML = '';
-
-            if (listaDeLivros.length === 0) {
-                grid.innerHTML = `<div class="col-span-full text-center py-10 text-gray-500">Nenhum livro encontrado. Certifique-se de ter criado as pastas e os arquivos dados.json corretamente.</div>`;
+            if(listaDeLivros.length === 0) {
+                grid.innerHTML = `<div class="col-span-full opacity-20 text-center py-20 italic">A carregar biblioteca...</div>`;
                 return;
             }
-
-            listaDeLivros.forEach(livro => {
-                const card = document.createElement('div');
-                card.className = "book-card bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm hover:shadow-xl transition-all border border-gray-100 dark:border-gray-700 flex flex-col";
-                
-                card.innerHTML = `
-                    <div class="relative w-full h-64 mb-4 rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-700 shadow-inner">
-                        <img src="${livro.capa}" alt="Capa de ${livro.titulo}" class="book-cover w-full h-full object-cover transition-transform duration-500" onerror="this.src='https://img.icons8.com/ios-filled/100/aaaaaa/no-image.png'">
-                        <div class="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-lg">
-                            ${livro.preco}
+            grid.innerHTML = listaDeLivros.map(book => `
+                <div class="group cursor-pointer" onclick="abrirLeitor('${book.id}')">
+                    <div class="relative aspect-[2/3] rounded-3xl overflow-hidden shadow-md group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-500 bg-gray-200">
+                        <img src="${book.capa}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x450'">
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <i class="fa-solid fa-play text-white text-3xl"></i>
                         </div>
                     </div>
-                    <div class="flex-1">
-                        <h3 class="font-serif font-bold text-lg leading-tight mb-1 dark:text-white">${livro.titulo}</h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">${livro.autor}</p>
-                    </div>
-                    <div class="flex flex-col gap-2 mt-auto">
-                        <button onclick="abrirLeitor('${livro.id}')" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium flex items-center justify-center gap-2 transition-colors">
-                            <i class="fa-solid fa-book-open"></i> Ler Online
-                        </button>
-                        <a href="${livro.compraLink}" target="_blank" rel="noopener noreferrer" class="w-full py-2.5 bg-transparent border-2 border-gray-200 dark:border-gray-600 hover:border-gray-800 dark:hover:border-gray-400 text-gray-800 dark:text-gray-200 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors">
-                            <i class="fa-solid fa-bag-shopping"></i> Comprar Físico
-                        </a>
-                    </div>
-                `;
-                grid.appendChild(card);
-            });
+                    <h3 class="mt-4 font-bold text-sm leading-tight line-clamp-2">${book.titulo}</h3>
+                    <p class="text-[10px] opacity-40 uppercase font-bold mt-1">${book.autor}</p>
+                </div>
+            `).join('');
         }
 
-        // ==========================================
-        // 3. LÓGICA DE ABRIR O LEITOR
-        // ==========================================
-        const viewLibrary = document.getElementById('view-library');
-        const viewReader = document.getElementById('view-reader');
-        let livroAtual = null;
-
-        function abrirLeitor(idLivro) {
-            livroAtual = listaDeLivros.find(l => l.id === idLivro);
-            if (!livroAtual) return;
-
-            viewLibrary.classList.add('hidden-view');
-            viewReader.classList.remove('hidden-view');
-            
-            document.getElementById('reader-title').textContent = livroAtual.titulo;
-            document.getElementById('reader-author').textContent = livroAtual.autor;
-            document.getElementById('loader-author').textContent = livroAtual.autor;
-            document.getElementById('reader-buy-btn').href = livroAtual.compraLink;
-
-            const loader = document.getElementById('loader');
-            loader.classList.remove('hidden');
-            loader.style.opacity = '1';
-
-            // Monta o link do PDF juntando a pasta + nome do arquivo
-            const caminhoCompletoPdf = livroAtual.caminhoPasta + livroAtual.arquivoPdf;
-            carregarPDF(caminhoCompletoPdf, livroAtual.id);
+        function abrirLeitor(id) {
+            const book = listaDeLivros.find(b => b.id === id);
+            if(!book) return;
+            currentBookId = id;
+            document.getElementById('view-reader').classList.remove('hidden-view');
+            document.getElementById('reader-title').textContent = book.titulo;
+            document.getElementById('loader-reader').style.opacity = '1';
+            loadPdf(book.folder + book.arquivoPdf);
         }
 
         function fecharLeitor() {
-            if (pdfDoc && livroAtual) localStorage.setItem(`pagina_salva_${livroAtual.id}`, pageNum);
-            viewReader.classList.add('hidden-view');
-            viewLibrary.classList.remove('hidden-view');
-            document.getElementById('pdf-render').style.opacity = '0';
-            pdfDoc = null;
+            localStorage.setItem(`save_${currentBookId}`, pageNum);
+            document.getElementById('view-reader').classList.add('hidden-view');
+            currentPdf = null;
         }
 
-        // ==========================================
-        // 4. SISTEMA DE PDF
-        // ==========================================
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        function loadPdf(url) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            pdfjsLib.getDocument(url).promise.then(pdf => {
+                currentPdf = pdf;
+                document.getElementById('page-count').textContent = pdf.numPages;
+                const saved = localStorage.getItem(`save_${currentBookId}`);
+                pageNum = (saved && parseInt(saved) <= pdf.numPages) ? parseInt(saved) : 1;
+                renderPage();
+            });
+        }
 
-        let pdfDoc = null, pageNum = 1, pageIsRendering = false, pageNumIsPending = null, scale = 1.2;
-        const canvas = document.getElementById('pdf-render');
-        const ctx = canvas.getContext('2d');
-        const mainContainer = document.getElementById('main-container');
-        const progressBar = document.getElementById('read-progress');
-
-        const updateProgress = () => {
-            if (!pdfDoc) return;
-            const percentage = (pageNum / pdfDoc.numPages) * 100;
-            progressBar.style.width = `${percentage}%`;
-        };
-
-        const renderPage = num => {
-            pageIsRendering = true;
-            canvas.classList.remove('page-anim');
-            void canvas.offsetWidth;
-            
-            pdfDoc.getPage(num).then(page => {
-                const viewport = page.getViewport({ scale });
-                const outputScale = window.devicePixelRatio || 1;
-                
-                canvas.width = Math.floor(viewport.width * outputScale);
-                canvas.height = Math.floor(viewport.height * outputScale);
-                canvas.style.width = Math.floor(viewport.width) + "px";
-                canvas.style.height =  Math.floor(viewport.height) + "px";
-
-                const renderCtx = { canvasContext: ctx, transform: outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null, viewport: viewport };
-
-                page.render(renderCtx).promise.then(() => {
-                    pageIsRendering = false;
-                    canvas.classList.add('page-anim');
-                    canvas.style.opacity = '1';
-                    
-                    const loader = document.getElementById('loader');
-                    if (!loader.classList.contains('hidden')) {
-                        loader.style.opacity = '0';
-                        setTimeout(() => loader.classList.add('hidden'), 500);
-                    }
-
-                    if (pageNumIsPending !== null) {
-                        renderPage(pageNumIsPending);
-                        pageNumIsPending = null;
-                    }
+        function renderPage() {
+            if(!currentPdf || isRendering) return;
+            isRendering = true;
+            currentPdf.getPage(pageNum).then(page => {
+                const canvas = document.getElementById('pdf-render');
+                const ctx = canvas.getContext('2d');
+                const viewport = page.getViewport({ scale: pdfScale });
+                const dpr = window.devicePixelRatio || 1;
+                canvas.height = viewport.height * dpr;
+                canvas.width = viewport.width * dpr;
+                canvas.style.width = viewport.width + "px";
+                canvas.style.height = viewport.height + "px";
+                ctx.scale(dpr, dpr);
+                page.render({ canvasContext: ctx, viewport: viewport }).promise.then(() => {
+                    isRendering = false;
+                    canvas.classList.add('opacity-100');
+                    document.getElementById('loader-reader').style.opacity = '0';
+                    document.getElementById('page-num').value = pageNum;
+                    document.getElementById('prev-page').disabled = pageNum <= 1;
+                    document.getElementById('next-page').disabled = pageNum >= currentPdf.numPages;
                 });
-
-                document.getElementById('page-num').value = num;
-                document.getElementById('prev-page').disabled = num <= 1;
-                document.getElementById('next-page').disabled = num >= pdfDoc.numPages;
-                updateProgress();
-                mainContainer.scrollTop = 0;
-            });
-        };
-
-        const queueRenderPage = num => { if (pageIsRendering) pageNumIsPending = num; else renderPage(num); };
-        const showPrevPage = () => { if (pageNum > 1) { pageNum--; queueRenderPage(pageNum); } };
-        const showNextPage = () => { if (pageNum < pdfDoc.numPages) { pageNum++; queueRenderPage(pageNum); } };
-        const updateZoom = (newScale) => { scale = newScale; document.getElementById('zoom-level').textContent = Math.round(scale * 100) + '%'; if (pdfDoc) queueRenderPage(pageNum); };
-
-        function carregarPDF(url, bookId) {
-            pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
-                pdfDoc = pdfDoc_;
-                document.getElementById('page-count').textContent = pdfDoc.numPages;
-                const savedPage = localStorage.getItem(`pagina_salva_${bookId}`);
-                pageNum = (savedPage && parseInt(savedPage) <= pdfDoc.numPages) ? parseInt(savedPage) : 1;
-                renderPage(pageNum);
-            }).catch(err => {
-                const loader = document.getElementById('loader');
-                loader.innerHTML = `
-                    <div class="text-center p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-sm mx-4 border border-gray-100 dark:border-gray-700">
-                        <i class="fa-solid fa-file-circle-xmark text-5xl text-red-500 mb-4"></i>
-                        <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-2">PDF Não Encontrado</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">O arquivo não foi encontrado na pasta correta.<br><br>Caminho tentado:<br><span class="text-xs font-mono break-all">${url}</span></p>
-                        <button onclick="fecharLeitor(); carregarBiblioteca();" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">Voltar</button>
-                    </div>
-                `;
-                console.error("Erro PDF:", err);
             });
         }
 
-        document.getElementById('prev-page').addEventListener('click', showPrevPage);
-        document.getElementById('next-page').addEventListener('click', showNextPage);
-        document.getElementById('zoom-in').addEventListener('click', () => { if(scale < 3) updateZoom(scale + 0.2); });
-        document.getElementById('zoom-out').addEventListener('click', () => { if(scale > 0.6) updateZoom(scale - 0.2); });
-        document.getElementById('page-num').addEventListener('change', (e) => {
-            let num = parseInt(e.target.value);
-            if (num > 0 && num <= pdfDoc.numPages) { pageNum = num; queueRenderPage(pageNum); } 
-            else { e.target.value = pageNum; }
-        });
+        function toggleZoom() { pdfScale = pdfScale > 1.5 ? 1.0 : pdfScale + 0.3; renderPage(); }
+        document.getElementById('prev-page').onclick = () => { if(pageNum > 1) { pageNum--; renderPage(); } };
+        document.getElementById('next-page').onclick = () => { if(pageNum < currentPdf.numPages) { pageNum++; renderPage(); } };
+        document.getElementById('page-num').onchange = (e) => { 
+            let val = parseInt(e.target.value);
+            if(val >= 1 && val <= currentPdf.numPages) { pageNum = val; renderPage(); }
+        };
 
-        document.addEventListener('keydown', (e) => {
-            if(!viewReader.classList.contains('hidden-view')) {
-                if (e.key === 'ArrowRight') showNextPage();
-                if (e.key === 'ArrowLeft') showPrevPage();
+        // AJUSTES DE TEMA E CONTRASTE
+        function initThemeGrid() {
+            const grid = document.getElementById('theme-grid');
+            grid.innerHTML = themes.map(t => `
+                <div class="flex flex-col items-center gap-2">
+                    <div onclick="applyTheme('${t.id}')" class="theme-dot" style="background:${t.bg}"></div>
+                    <span class="text-[8px] font-bold opacity-30 uppercase truncate w-full text-center">${t.name}</span>
+                </div>
+            `).join('');
+        }
+
+        function abrirConfig() {
+            document.getElementById('modal-config').classList.toggle('hidden-view');
+        }
+
+        function getLuminance(hex) {
+            const rgb = hex.replace('#','').match(/.{2}/g).map(x => parseInt(x, 16));
+            return (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
+        }
+
+        function applyTheme(id) {
+            let theme;
+            if(id === 'system') {
+                const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                theme = themes.find(t => t.id === (isDark ? 'night' : 'light'));
+            } else {
+                theme = themes.find(t => t.id === id);
             }
-        });
 
-        // ==========================================
-        // 5. SISTEMA DE TEMAS
-        // ==========================================
-        const body = document.body;
-        const metaThemeColor = document.getElementById('meta-theme-color');
-        const themeBtns = document.querySelectorAll('.theme-btn');
+            // Aplicar Cores
+            document.documentElement.style.setProperty('--main-bg', theme.bg);
+            document.documentElement.style.setProperty('--main-text', theme.text);
+            document.getElementById('pdf-render').style.filter = theme.pdf;
+            
+            // Ajustar Vidro e Brilho dos Menus com base na Luminância
+            const lum = getLuminance(theme.bg);
+            if (lum < 0.3) { // Tema Escuro
+                document.documentElement.style.setProperty('--glass-bg', 'rgba(15, 23, 42, 0.7)');
+                document.documentElement.classList.add('dark');
+                // Forçar cor dos ícones para branco se for muito escuro
+                document.body.style.color = '#f1f5f9';
+            } else { // Tema Claro
+                document.documentElement.style.setProperty('--glass-bg', 'rgba(255, 255, 255, 0.7)');
+                document.documentElement.classList.remove('dark');
+                document.body.style.color = theme.text;
+            }
 
-        const applyTheme = (theme) => {
-            body.classList.remove('theme-light', 'theme-dark', 'theme-sepia', 'dark', 'bg-slate-50', 'bg-slate-900', 'bg-sepia-bg', 'text-slate-800', 'text-slate-300', 'text-sepia-text');
-            if (theme === 'dark') { body.classList.add('theme-dark', 'dark', 'bg-slate-900', 'text-slate-300'); metaThemeColor.setAttribute('content', '#1f2937'); } 
-            else if (theme === 'sepia') { body.classList.add('theme-sepia', 'bg-sepia-bg', 'text-sepia-text'); metaThemeColor.setAttribute('content', '#f3e5c8'); } 
-            else { body.classList.add('theme-light', 'bg-slate-50', 'text-slate-800'); metaThemeColor.setAttribute('content', '#ffffff'); }
-
-            themeBtns.forEach(btn => { btn.classList.remove('ring-2', 'ring-blue-500', 'scale-110'); if (btn.dataset.theme === theme) btn.classList.add('ring-2', 'ring-blue-500', 'scale-110'); });
-            localStorage.setItem('reader_theme', theme);
-        };
-
-        const savedTheme = localStorage.getItem('reader_theme');
-        if (savedTheme) applyTheme(savedTheme);
-        else if (window.matchMedia('(prefers-color-scheme: dark)').matches) applyTheme('dark');
-        else applyTheme('light');
-        themeBtns.forEach(btn => btn.addEventListener('click', () => applyTheme(btn.dataset.theme)));
-
-        // ==========================================
-        // 6. PWA (SERVICE WORKER E INSTALAÇÃO)
-        // ==========================================
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+            localStorage.setItem('user_theme', id);
+            
+            // Atualizar Indicador Ativo
+            document.querySelectorAll('.theme-dot').forEach(dot => dot.classList.remove('active'));
+            const idx = themes.findIndex(t => t.id === id);
+            if(idx >= 0) document.querySelectorAll('.theme-dot')[idx].classList.add('active');
         }
 
-        let deferredPrompt;
-        const installButton = document.getElementById('install-button');
+        function applySavedTheme() { applyTheme(localStorage.getItem('user_theme') || 'system'); }
 
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            installButton.classList.remove('hidden');
-        });
+        function limparTudo() {
+            if(confirm("Deseja apagar o progresso e cache local?")) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
 
-        installButton.addEventListener('click', async () => {
-            if (!deferredPrompt) return;
-            deferredPrompt.prompt();
-            await deferredPrompt.userChoice;
-            deferredPrompt = null;
-            installButton.classList.add('hidden');
-        });
+        function voltarParaHome() {
+            if(!document.getElementById('view-reader').classList.contains('hidden-view')) fecharLeitor();
+            document.getElementById('view-library').scrollTo({ top: 0, behavior: 'smooth' });
+        }
 
-        window.addEventListener('appinstalled', () => installButton.classList.add('hidden'));
-
-        // ==========================================
-        // 7. INICIALIZAÇÃO
-        // ==========================================
-        // Inicia a leitura das pastas e monta a vitrine
-        carregarBiblioteca();
-
+        function setupPWA() {
+            if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+        }
     </script>
 </body>
 </html>
