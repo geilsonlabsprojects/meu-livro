@@ -1,21 +1,25 @@
 <!DOCTYPE html>
-<html lang="pt-PT">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Leitor Pro Ultra</title>
+    <title>Minha Biblioteca Digital</title>
     
+    <!-- PWA Meta Tags -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#3b82f6" id="meta-theme-color">
+    <link rel="apple-touch-icon" href="https://img.icons8.com/color/512/open-book.png">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     
-    <!-- Scripts -->
+    <!-- Scripts (Tailwind, FontAwesome, PDF.js, ePub.js) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.93/epub.min.js"></script>
 
     <style>
         :root { 
@@ -23,368 +27,350 @@
             --main-text: #1e293b; 
             --accent: #3b82f6; 
             --glass-bg: rgba(255, 255, 255, 0.7);
+            --card-bg: #ffffff;
+            --nav-bg: rgba(255, 255, 255, 0.9);
         }
-        
-        body { 
-            background-color: var(--main-bg); 
-            color: var(--main-text); 
-            transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.4s ease; 
-            font-family: 'Inter', sans-serif; 
+
+        html.dark {
+            --main-bg: #0f172a;
+            --main-text: #f1f5f9;
+            --accent: #60a5fa;
+            --glass-bg: rgba(15, 23, 42, 0.8);
+            --card-bg: #1e293b;
+            --nav-bg: rgba(30, 41, 59, 0.95);
+        }
+
+        body {
+            background-color: var(--main-bg);
+            color: var(--main-text);
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.4s ease, color 0.4s ease;
             -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
         }
 
         .font-serif { font-family: 'Playfair Display', serif; }
 
-        /* Renderização do PDF */
-        #pdf-render { 
-            max-width: 100%; 
-            height: auto !important; 
-            border-radius: 12px; 
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
-            transition: filter 0.4s ease;
+        /* UI Elements */
+        .glass-header {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(128, 128, 128, 0.1);
+        }
+
+        .bottom-nav {
+            background: var(--nav-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(128, 128, 128, 0.1);
+            padding-bottom: env(safe-area-inset-bottom, 16px);
+        }
+
+        .book-card {
+            background: var(--card-bg);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
         
-        /* Efeito de Vidro Dinâmico */
-        .glass { 
-            background: var(--glass-bg); 
-            backdrop-filter: blur(15px); 
-            -webkit-backdrop-filter: blur(15px); 
-            border-bottom: 1px solid rgba(128,128,128,0.1); 
+        .book-card:active { transform: scale(0.96); }
+
+        .search-bar {
+            background: var(--card-bg);
+            border: 1px solid rgba(128, 128, 128, 0.2);
+            color: var(--main-text);
         }
 
-        .hidden-view { display: none !important; }
-
-        /* Grid de Temas Otimizado */
-        .theme-dot { 
-            width: 100%; 
-            aspect-ratio: 1; 
-            border-radius: 50%; 
-            cursor: pointer; 
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 3px solid rgba(128,128,128,0.2);
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        /* Reader UI */
+        .hidden-view {
+            opacity: 0;
+            pointer-events: none;
+            position: absolute;
+            top: 0; left: 0; w-full; h-full;
+            z-index: -1;
         }
-        .theme-dot:active { transform: scale(0.9); }
-        .theme-dot.active { 
-            border-color: var(--accent); 
-            transform: scale(1.1);
-            box-shadow: 0 0 0 2px var(--main-bg), 0 0 0 4px var(--accent);
+        
+        .active-view {
+            opacity: 1;
+            pointer-events: auto;
+            position: relative;
+            z-index: 10;
+            animation: fadeIn 0.4s ease forwards;
         }
 
-        /* Animações */
-        .view-transition { animation: fadeIn 0.4s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Scrollbar Dinâmica */
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.3); border-radius: 10px; }
+        /* Custom Scrollbar for Library */
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Reader Overlay Controls */
+        #reader-overlay { transition: opacity 0.3s ease; }
+        .reader-controls-hidden #reader-overlay { opacity: 0; pointer-events: none; }
+        
+        .progress-track {
+            background: rgba(128, 128, 128, 0.2);
+            height: 4px;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            background: var(--accent);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Theme selection dots */
+        .theme-dot {
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; border: 2px solid transparent;
+            transition: transform 0.2s;
+        }
+        .theme-dot.active { border-color: var(--accent); transform: scale(1.1); }
+        
+        /* Containers do leitor */
+        #pdf-render {
+            width: 100%; height: 100%;
+            object-fit: contain;
+        }
+        #epub-render {
+            width: 100%; height: 100%;
+            overflow: hidden;
+        }
     </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden">
+<body class="antialiased h-screen flex flex-col overflow-hidden">
 
-    <!-- HEADER PRINCIPAL -->
-    <header class="glass sticky top-0 z-50 h-16 flex items-center shrink-0">
-        <div class="max-w-7xl mx-auto px-4 w-full flex justify-between items-center">
-            <div class="flex items-center gap-3 cursor-pointer group" onclick="voltarParaHome()">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform">
-                    <i class="fa-solid fa-book-bookmark"></i>
-                </div>
+    <!-- ==================== VIEW: BIBLIOTECA ==================== -->
+    <div id="view-library" class="active-view h-full flex flex-col overflow-y-auto hide-scroll pb-24">
+        
+        <!-- Header -->
+        <header class="glass-header sticky top-0 z-40 px-6 pt-10 pb-4">
+            <div class="flex justify-between items-center mb-6">
                 <div>
-                    <h1 class="font-serif font-bold text-lg leading-none">Minha Estante</h1>
-                    <span class="text-[10px] uppercase tracking-[0.2em] opacity-50">Premium Reader</span>
+                    <h1 class="text-3xl font-serif text-[var(--main-text)]">Sua Estante</h1>
+                    <p class="text-sm opacity-70 mt-1">Bem-vindo de volta ao seu mundo mágico</p>
                 </div>
-            </div>
-
-            <div class="flex items-center gap-2">
-                <button id="install-button" class="hidden px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-full shadow-md transition-all active:scale-95">
-                    <i class="fa-solid fa-download mr-1"></i> Instalar
-                </button>
-                <button onclick="abrirConfig()" class="w-10 h-10 rounded-full hover:bg-black/5 flex items-center justify-center transition-colors">
-                    <i class="fa-solid fa-palette text-lg"></i>
+                <button id="install-button" class="hidden bg-[var(--accent)] text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition">
+                    <i class="fa-solid fa-download"></i>
                 </button>
             </div>
-        </div>
-    </header>
-
-    <!-- TELA: BIBLIOTECA -->
-    <main id="view-library" class="flex-1 overflow-y-auto px-4 py-8 view-transition">
-        <div class="max-w-7xl mx-auto">
-            <header class="mb-10">
-                <h2 class="text-4xl font-serif font-bold mb-2">Continuar Leitura</h2>
-                <div class="h-1 w-20 bg-blue-600 rounded-full"></div>
-            </header>
             
-            <div id="books-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
-                <div class="col-span-full py-20 text-center">
-                    <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-500 opacity-20"></i>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- TELA: LEITOR -->
-    <div id="view-reader" class="hidden-view fixed inset-0 z-[60] bg-[var(--main-bg)] flex flex-col view-transition">
-        <header class="glass h-16 flex justify-between items-center px-4 shrink-0">
-            <button onclick="fecharLeitor()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/10 transition">
-                <i class="fa-solid fa-chevron-left"></i>
-            </button>
-            <div class="text-center flex-1 truncate px-4">
-                <h3 id="reader-title" class="text-sm font-bold truncate opacity-80">A carregar...</h3>
-            </div>
-            <div class="flex items-center gap-1">
-                <button onclick="abrirConfig()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/10 transition">
-                    <i class="fa-solid fa-palette"></i>
-                </button>
-                <button onclick="toggleZoom()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/10 transition">
-                    <i class="fa-solid fa-magnifying-glass-plus"></i>
-                </button>
+            <!-- Search -->
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 transform -translate-y-1/2 opacity-50"></i>
+                <input type="text" id="searchInput" placeholder="Buscar título, autor ou gênero..." 
+                       class="search-bar w-full py-3 pl-12 pr-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all">
             </div>
         </header>
-        
-        <main class="flex-1 overflow-y-auto pt-6 pb-24 relative" id="reader-scroll">
-            <div id="loader-reader" class="absolute inset-0 flex items-center justify-center bg-[var(--main-bg)] z-10 transition-opacity duration-300">
-                <i class="fa-solid fa-compass fa-spin text-4xl text-blue-500"></i>
-            </div>
-            <div class="flex justify-center px-4">
-                <canvas id="pdf-render" class="opacity-0"></canvas>
+
+        <!-- Dynamic Content Area -->
+        <main id="library-content" class="px-6 py-6 flex-1 space-y-10">
+            <div class="flex justify-center items-center h-40">
+                <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[var(--accent)]"></div>
             </div>
         </main>
 
-        <nav class="glass absolute bottom-0 w-full h-20 flex items-center justify-center px-4 pb-2">
-            <div class="bg-black/5 rounded-full p-1.5 flex items-center gap-1 shadow-inner">
-                <button id="prev-page" class="w-12 h-12 rounded-full bg-white/10 shadow-sm flex items-center justify-center disabled:opacity-30 transition-transform active:scale-90">
-                    <i class="fa-solid fa-arrow-left"></i>
-                </button>
-                <div class="flex items-center px-4 gap-2">
-                    <input type="number" id="page-num" class="w-12 text-center bg-transparent font-bold text-lg outline-none" value="1">
-                    <span class="opacity-30 font-light text-xl">/</span>
-                    <span id="page-count" class="font-medium opacity-60">0</span>
-                </div>
-                <button id="next-page" class="w-12 h-12 rounded-full bg-white/10 shadow-sm flex items-center justify-center disabled:opacity-30 transition-transform active:scale-90">
-                    <i class="fa-solid fa-arrow-right"></i>
-                </button>
-            </div>
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav fixed bottom-0 w-full flex justify-around items-center pt-3 pb-safe-4 z-40">
+            <button class="flex flex-col items-center text-[var(--accent)] p-2">
+                <i class="fa-solid fa-book-open text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Livros</span>
+            </button>
+            <button onclick="toggleMenu()" class="flex flex-col items-center opacity-60 hover:opacity-100 p-2 transition text-[var(--main-text)]">
+                <i class="fa-solid fa-gear text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Ajustes</span>
+            </button>
         </nav>
     </div>
 
-    <!-- MODAL: TEMAS E CONFIGURAÇÕES -->
-    <div id="modal-config" class="hidden-view fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-4">
-        <div class="bg-[var(--main-bg)] w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/10">
-            <div class="p-8 border-b border-black/5 flex justify-between items-center">
-                <div>
-                    <h2 class="text-2xl font-serif font-bold">Aparência</h2>
-                    <p class="text-xs opacity-50 uppercase tracking-widest mt-1">Escolha o seu estilo</p>
+    <!-- ==================== VIEW: LEITOR ==================== -->
+    <div id="view-reader" class="hidden-view h-full w-full bg-[var(--main-bg)] flex flex-col fixed inset-0 z-50">
+        
+        <!-- Reader Core Area -->
+        <div class="flex-1 relative w-full h-full overflow-hidden" id="reader-container">
+            <!-- Renderers (Logica do Index 12) -->
+            <canvas id="pdf-render" class="absolute top-0 left-0 hidden"></canvas>
+            <div id="epub-render" class="absolute top-0 left-0 hidden"></div>
+
+            <!-- Touch Zones for Pagination -->
+            <div class="absolute inset-y-0 left-0 w-1/3 z-10" onclick="paginaAnterior()"></div>
+            <div class="absolute inset-y-0 right-0 w-1/3 z-10" onclick="proximaPagina()"></div>
+            <div class="absolute inset-y-0 left-1/3 w-1/3 z-10" onclick="toggleReaderControls()"></div>
+        </div>
+
+        <!-- Overlay Controls (Logica Visual do Index 13) -->
+        <div id="reader-overlay" class="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between">
+            <!-- Top Bar -->
+            <div class="glass-header px-4 pt-10 pb-4 flex items-center justify-between pointer-events-auto">
+                <button onclick="voltarParaHome()" class="w-10 h-10 rounded-full bg-[var(--card-bg)] shadow flex items-center justify-center active:scale-90">
+                    <i class="fa-solid fa-arrow-left text-[var(--main-text)]"></i>
+                </button>
+                <div class="text-center flex-1 px-4 truncate">
+                    <h2 id="reader-title" class="font-semibold text-sm truncate">Título do Livro</h2>
+                    <p id="reader-progress-text" class="text-xs opacity-60 mt-0.5">Página 1 de 100</p>
                 </div>
-                <button onclick="abrirConfig()" class="w-12 h-12 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition">
-                    <i class="fa-solid fa-xmark text-xl"></i>
+                <button onclick="toggleMenu()" class="w-10 h-10 rounded-full bg-[var(--card-bg)] shadow flex items-center justify-center active:scale-90">
+                    <i class="fa-solid fa-palette text-[var(--main-text)]"></i>
                 </button>
             </div>
-            
-            <div class="p-8 space-y-10 overflow-y-auto max-h-[65vh]">
-                <button onclick="applyTheme('system')" class="w-full p-5 rounded-2xl bg-blue-600 text-white flex items-center justify-between group relative overflow-hidden shadow-lg shadow-blue-500/20">
-                    <div class="relative z-10 flex items-center gap-4">
-                        <i class="fa-solid fa-circle-half-stroke text-xl"></i>
-                        <span class="font-bold">Modo Automático</span>
-                    </div>
-                    <i class="fa-solid fa-check opacity-50 group-hover:opacity-100 transition-opacity"></i>
-                </button>
 
-                <div>
-                    <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 mb-6">Paletas Disponíveis</h3>
-                    <div id="theme-grid" class="grid grid-cols-6 gap-6">
-                        <!-- Temas aqui -->
-                    </div>
+            <!-- Bottom Progress -->
+            <div class="bottom-nav px-6 py-6 pointer-events-auto">
+                <div class="flex items-center justify-between text-xs opacity-70 mb-2 font-medium">
+                    <span id="prog-start">0%</span>
+                    <span id="prog-end">100%</span>
                 </div>
-
-                <div class="pt-6 border-t border-black/5">
-                    <button onclick="limparTudo()" class="w-full p-4 rounded-2xl bg-red-500/10 text-red-500 font-bold flex items-center justify-center gap-3 hover:bg-red-500/20 transition-colors">
-                        <i class="fa-solid fa-trash-can"></i>
-                        Limpar Dados do Site
-                    </button>
+                <div class="progress-track w-full">
+                    <div id="progress-bar-fill" class="progress-fill"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        const pastasDosLivros = ["Cartas-de-Um-Diabo-a-Seu-Aprend-C.-S.-Lewis"];
+    <!-- ==================== MENU / SETTINGS MODAL ==================== -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/50 z-[100] hidden opacity-0 transition-opacity duration-300 backdrop-blur-sm" onclick="if(event.target===this) toggleMenu()">
+        <div class="absolute bottom-0 w-full bg-[var(--card-bg)] rounded-t-3xl p-6 transform translate-y-full transition-transform duration-300" id="settings-panel">
+            <div class="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-6"></div>
+            
+            <h3 class="text-lg font-semibold mb-4">Aparência</h3>
+            
+            <div class="flex justify-between items-center mb-8 px-2">
+                <!-- System -->
+                <div class="flex flex-col items-center gap-2" onclick="applyTheme('system')">
+                    <div class="theme-dot active bg-gradient-to-br from-gray-200 to-gray-800 border-2" data-id="system"></div>
+                    <span class="text-xs font-medium">Auto</span>
+                </div>
+                <!-- Light -->
+                <div class="flex flex-col items-center gap-2" onclick="applyTheme('light')">
+                    <div class="theme-dot bg-white border-2 border-gray-200 shadow-sm" data-id="light"></div>
+                    <span class="text-xs font-medium">Claro</span>
+                </div>
+                <!-- Sepia -->
+                <div class="flex flex-col items-center gap-2" onclick="applyTheme('sepia')">
+                    <div class="theme-dot bg-[#f4ecd8] border-2 border-[#e0d5b1] shadow-sm" data-id="sepia"></div>
+                    <span class="text-xs font-medium">Sépia</span>
+                </div>
+                <!-- Dark -->
+                <div class="flex flex-col items-center gap-2" onclick="applyTheme('dark')">
+                    <div class="theme-dot bg-[#1e293b] border-2 border-gray-700 shadow-sm" data-id="dark"></div>
+                    <span class="text-xs font-medium">Escuro</span>
+                </div>
+                <!-- AMOLED -->
+                <div class="flex flex-col items-center gap-2" onclick="applyTheme('amoled')">
+                    <div class="theme-dot bg-black border-2 border-gray-800 shadow-sm" data-id="amoled"></div>
+                    <span class="text-xs font-medium">OLED</span>
+                </div>
+            </div>
 
+            <div class="space-y-3">
+                <button onclick="limparTudo()" class="w-full py-3.5 bg-red-500/10 text-red-500 rounded-xl font-medium flex items-center justify-center gap-2 active:scale-95 transition">
+                    <i class="fa-solid fa-trash-can"></i> Limpar Dados e Cache
+                </button>
+                <button onclick="toggleMenu()" class="w-full py-3.5 bg-[var(--main-bg)] rounded-xl font-medium active:scale-95 transition">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== LÓGICA JAVASCRIPT ==================== -->
+    <script>
+        // --- 1. CONFIGURAÇÃO BASE ---
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        const PASTAS = ['Fantasia', 'Ficcao', 'Romance', 'Terror'];
+        let biblioteca = {};
+
+        // Estado do Leitor (Index 12)
+        let docPDF = null;
+        let pageNum = 1;
+        let isRendering = false;
+        let pageNumPending = null;
+        const canvas = document.getElementById('pdf-render');
+        const ctx = canvas.getContext('2d');
+        let currentScale = 1.0;
+
+        let bookEpub = null;
+        let rendition = null;
+        
+        let urlAtual = '';
+        let tipoAtual = '';
+        let tituloAtual = '';
+        let controlsVisible = true;
+
+        // --- 2. THEME ENGINE (Index 13 adaptado para ePub) ---
         const themes = [
-            { id: 'light', name: 'Alvo', bg: '#ffffff', text: '#1e293b', pdf: 'none' },
-            { id: 'slate', name: 'Cinza', bg: '#f1f5f9', text: '#334155', pdf: 'none' },
-            { id: 'cream', name: 'Creme', bg: '#fffdf5', text: '#433422', pdf: 'sepia(0.2)' },
-            { id: 'sepia', name: 'Sépia', bg: '#f4ecd8', text: '#5b4636', pdf: 'sepia(0.6) contrast(0.9)' },
-            { id: 'vintage', name: 'Antigo', bg: '#e5d1b8', text: '#3e2a14', pdf: 'sepia(0.9) brightness(0.8)' },
-            { id: 'rose', name: 'Rosé', bg: '#fff1f2', text: '#881337', pdf: 'none' },
-            { id: 'mint', name: 'Menta', bg: '#f0fdf4', text: '#166534', pdf: 'none' },
-            { id: 'sky', name: 'Céu', bg: '#f0f9ff', text: '#075985', pdf: 'none' },
-            { id: 'dim', name: 'Suave', bg: '#15202b', text: '#ffffff', pdf: 'invert(0.9) hue-rotate(180deg)' },
-            { id: 'night', name: 'Noite', bg: '#0f172a', text: '#cbd5e1', pdf: 'invert(0.9) contrast(0.8)' },
-            { id: 'obsidian', name: 'Negro', bg: '#020617', text: '#94a3b8', pdf: 'invert(1) contrast(0.8)' },
-            { id: 'cyber', name: 'Cyber', bg: '#000000', text: '#00ff41', pdf: 'invert(1) hue-rotate(120deg)' }
+            { id: 'system', text: '#1e293b' },
+            { id: 'light', bg: '#f8fafc', text: '#1e293b', glass: 'rgba(255,255,255,0.7)', card: '#ffffff', nav: 'rgba(255,255,255,0.9)' },
+            { id: 'sepia', bg: '#f4ecd8', text: '#5c4b37', glass: 'rgba(244,236,216,0.7)', card: '#fffdf6', nav: 'rgba(244,236,216,0.95)' },
+            { id: 'dark', bg: '#0f172a', text: '#f1f5f9', glass: 'rgba(15,23,42,0.8)', card: '#1e293b', nav: 'rgba(30,41,59,0.95)' },
+            { id: 'amoled', bg: '#000000', text: '#e2e8f0', glass: 'rgba(0,0,0,0.8)', card: '#121212', nav: 'rgba(0,0,0,0.95)' }
         ];
 
-        let listaDeLivros = [];
-        let currentPdf = null, pageNum = 1, pdfScale = 1.3, isRendering = false, currentBookId = null;
-
-        window.onload = () => {
-            initThemeGrid();
-            carregarBiblioteca();
-            applySavedTheme();
-            setupPWA();
-        };
-
-        async function carregarBiblioteca() {
-            const grid = document.getElementById('books-grid');
-            listaDeLivros = [];
-            for (const pasta of pastasDosLivros) {
-                try {
-                    const res = await fetch(`pdfs/${pasta}/dados.json`);
-                    if(res.ok) {
-                        const data = await res.json();
-                        data.folder = `pdfs/${pasta}/`;
-                        listaDeLivros.push(data);
-                    }
-                } catch(e) {}
-            }
-            renderVitrine();
-        }
-
-        function renderVitrine() {
-            const grid = document.getElementById('books-grid');
-            if(listaDeLivros.length === 0) {
-                grid.innerHTML = `<div class="col-span-full opacity-20 text-center py-20 italic">A carregar biblioteca...</div>`;
-                return;
-            }
-            grid.innerHTML = listaDeLivros.map(book => `
-                <div class="group cursor-pointer" onclick="abrirLeitor('${book.id}')">
-                    <div class="relative aspect-[2/3] rounded-3xl overflow-hidden shadow-md group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-500 bg-gray-200">
-                        <img src="${book.capa}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x450'">
-                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <i class="fa-solid fa-play text-white text-3xl"></i>
-                        </div>
-                    </div>
-                    <h3 class="mt-4 font-bold text-sm leading-tight line-clamp-2">${book.titulo}</h3>
-                    <p class="text-[10px] opacity-40 uppercase font-bold mt-1">${book.autor}</p>
-                </div>
-            `).join('');
-        }
-
-        function abrirLeitor(id) {
-            const book = listaDeLivros.find(b => b.id === id);
-            if(!book) return;
-            currentBookId = id;
-            document.getElementById('view-reader').classList.remove('hidden-view');
-            document.getElementById('reader-title').textContent = book.titulo;
-            document.getElementById('loader-reader').style.opacity = '1';
-            loadPdf(book.folder + book.arquivoPdf);
-        }
-
-        function fecharLeitor() {
-            localStorage.setItem(`save_${currentBookId}`, pageNum);
-            document.getElementById('view-reader').classList.add('hidden-view');
-            currentPdf = null;
-        }
-
-        function loadPdf(url) {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-            pdfjsLib.getDocument(url).promise.then(pdf => {
-                currentPdf = pdf;
-                document.getElementById('page-count').textContent = pdf.numPages;
-                const saved = localStorage.getItem(`save_${currentBookId}`);
-                pageNum = (saved && parseInt(saved) <= pdf.numPages) ? parseInt(saved) : 1;
-                renderPage();
-            });
-        }
-
-        function renderPage() {
-            if(!currentPdf || isRendering) return;
-            isRendering = true;
-            currentPdf.getPage(pageNum).then(page => {
-                const canvas = document.getElementById('pdf-render');
-                const ctx = canvas.getContext('2d');
-                const viewport = page.getViewport({ scale: pdfScale });
-                const dpr = window.devicePixelRatio || 1;
-                canvas.height = viewport.height * dpr;
-                canvas.width = viewport.width * dpr;
-                canvas.style.width = viewport.width + "px";
-                canvas.style.height = viewport.height + "px";
-                ctx.scale(dpr, dpr);
-                page.render({ canvasContext: ctx, viewport: viewport }).promise.then(() => {
-                    isRendering = false;
-                    canvas.classList.add('opacity-100');
-                    document.getElementById('loader-reader').style.opacity = '0';
-                    document.getElementById('page-num').value = pageNum;
-                    document.getElementById('prev-page').disabled = pageNum <= 1;
-                    document.getElementById('next-page').disabled = pageNum >= currentPdf.numPages;
-                });
-            });
-        }
-
-        function toggleZoom() { pdfScale = pdfScale > 1.5 ? 1.0 : pdfScale + 0.3; renderPage(); }
-        document.getElementById('prev-page').onclick = () => { if(pageNum > 1) { pageNum--; renderPage(); } };
-        document.getElementById('next-page').onclick = () => { if(pageNum < currentPdf.numPages) { pageNum++; renderPage(); } };
-        document.getElementById('page-num').onchange = (e) => { 
-            let val = parseInt(e.target.value);
-            if(val >= 1 && val <= currentPdf.numPages) { pageNum = val; renderPage(); }
-        };
-
-        // AJUSTES DE TEMA E CONTRASTE
-        function initThemeGrid() {
-            const grid = document.getElementById('theme-grid');
-            grid.innerHTML = themes.map(t => `
-                <div class="flex flex-col items-center gap-2">
-                    <div onclick="applyTheme('${t.id}')" class="theme-dot" style="background:${t.bg}"></div>
-                    <span class="text-[8px] font-bold opacity-30 uppercase truncate w-full text-center">${t.name}</span>
-                </div>
-            `).join('');
-        }
-
-        function abrirConfig() {
-            document.getElementById('modal-config').classList.toggle('hidden-view');
-        }
-
-        function getLuminance(hex) {
-            const rgb = hex.replace('#','').match(/.{2}/g).map(x => parseInt(x, 16));
-            return (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
-        }
-
         function applyTheme(id) {
-            let theme;
-            if(id === 'system') {
-                const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                theme = themes.find(t => t.id === (isDark ? 'night' : 'light'));
-            } else {
-                theme = themes.find(t => t.id === id);
+            let target = themes.find(t => t.id === id);
+            
+            if (id === 'system') {
+                target = window.matchMedia('(prefers-color-scheme: dark)').matches 
+                    ? themes.find(t => t.id === 'dark') 
+                    : themes.find(t => t.id === 'light');
             }
 
-            // Aplicar Cores
-            document.documentElement.style.setProperty('--main-bg', theme.bg);
-            document.documentElement.style.setProperty('--main-text', theme.text);
-            document.getElementById('pdf-render').style.filter = theme.pdf;
+            document.documentElement.style.setProperty('--main-bg', target.bg || '');
+            document.documentElement.style.setProperty('--main-text', target.text || '');
+            document.documentElement.style.setProperty('--glass-bg', target.glass || '');
+            document.documentElement.style.setProperty('--card-bg', target.card || '');
+            document.documentElement.style.setProperty('--nav-bg', target.nav || '');
             
-            // Ajustar Vidro e Brilho dos Menus com base na Luminância
-            const lum = getLuminance(theme.bg);
-            if (lum < 0.3) { // Tema Escuro
-                document.documentElement.style.setProperty('--glass-bg', 'rgba(15, 23, 42, 0.7)');
-                document.documentElement.classList.add('dark');
-                // Forçar cor dos ícones para branco se for muito escuro
-                document.body.style.color = '#f1f5f9';
-            } else { // Tema Claro
-                document.documentElement.style.setProperty('--glass-bg', 'rgba(255, 255, 255, 0.7)');
-                document.documentElement.classList.remove('dark');
-                document.body.style.color = theme.text;
-            }
+            document.getElementById('meta-theme-color').content = target.bg;
+            document.documentElement.classList.toggle('dark', ['dark', 'amoled'].includes(id) || (id === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches));
 
             localStorage.setItem('user_theme', id);
             
-            // Atualizar Indicador Ativo
+            // Atualizar UI
             document.querySelectorAll('.theme-dot').forEach(dot => dot.classList.remove('active'));
-            const idx = themes.findIndex(t => t.id === id);
-            if(idx >= 0) document.querySelectorAll('.theme-dot')[idx].classList.add('active');
+            document.querySelector(`.theme-dot[data-id="${id}"]`)?.classList.add('active');
+
+            // Atualizar ePub se estiver aberto
+            if (rendition) {
+                rendition.themes.register('custom', { body: { background: target.bg, color: target.text }});
+                rendition.themes.select('custom');
+            }
         }
 
-        function applySavedTheme() { applyTheme(localStorage.getItem('user_theme') || 'system'); }
+        function applySavedTheme() {
+            applyTheme(localStorage.getItem('user_theme') || 'system');
+        }
+
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if (localStorage.getItem('user_theme') === 'system') applyTheme('system');
+        });
+
+        // --- 3. UI CONTROLS (Index 13) ---
+        function toggleReaderControls() {
+            controlsVisible = !controlsVisible;
+            document.getElementById('view-reader').classList.toggle('reader-controls-hidden', !controlsVisible);
+        }
+
+        function toggleMenu() {
+            const modal = document.getElementById('settings-modal');
+            const panel = document.getElementById('settings-panel');
+            
+            if(modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.classList.remove('opacity-0');
+                    panel.classList.remove('translate-y-full');
+                }, 10);
+            } else {
+                modal.classList.add('opacity-0');
+                panel.classList.add('translate-y-full');
+                setTimeout(() => modal.classList.add('hidden'), 300);
+            }
+        }
 
         function limparTudo() {
             if(confirm("Deseja apagar o progresso e cache local?")) {
@@ -394,13 +380,298 @@
         }
 
         function voltarParaHome() {
-            if(!document.getElementById('view-reader').classList.contains('hidden-view')) fecharLeitor();
-            document.getElementById('view-library').scrollTo({ top: 0, behavior: 'smooth' });
+            document.getElementById('view-reader').classList.remove('active-view');
+            document.getElementById('view-reader').classList.add('hidden-view');
+            
+            document.getElementById('view-library').classList.remove('hidden-view');
+            document.getElementById('view-library').classList.add('active-view');
+            
+            if (docPDF) docPDF = null;
+            if (bookEpub) bookEpub.destroy();
+            
+            document.getElementById('pdf-render').classList.add('hidden');
+            document.getElementById('epub-render').classList.add('hidden');
+            
+            carregarBiblioteca(); // Refresh progress on cards
         }
 
-        function setupPWA() {
-            if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+        // --- 4. CARREGAMENTO DE BIBLIOTECA (Logica Index 12, HTML Index 13) ---
+        async function carregarBiblioteca() {
+            biblioteca = {};
+            for (let pasta of PASTAS) {
+                let livrosEncontrados = [];
+                for (let i = 1; i <= 5; i++) {
+                    let pdfUrl = `${pasta}/livro${i}.pdf`;
+                    let epubUrl = `${pasta}/livro${i}.epub`;
+
+                    try {
+                        let resPdf = await fetch(pdfUrl, { method: 'HEAD' });
+                        if (resPdf.ok) livrosEncontrados.push({ url: pdfUrl, tipo: 'pdf', titulo: `Livro ${i}` });
+                    } catch (e) {}
+
+                    try {
+                        let resEpub = await fetch(epubUrl, { method: 'HEAD' });
+                        if (resEpub.ok) livrosEncontrados.push({ url: epubUrl, tipo: 'epub', titulo: `Livro ${i}` });
+                    } catch (e) {}
+                }
+                if (livrosEncontrados.length > 0) biblioteca[pasta] = livrosEncontrados;
+            }
+            renderizarEstante();
         }
+
+        async function extrairCapa(url, tipo) {
+            try {
+                if (tipo === 'pdf') {
+                    const pdf = await pdfjsLib.getDocument(url).promise;
+                    const page = await pdf.getPage(1);
+                    const viewport = page.getViewport({ scale: 0.5 });
+                    const cvs = document.createElement('canvas');
+                    const cxt = cvs.getContext('2d');
+                    cvs.height = viewport.height;
+                    cvs.width = viewport.width;
+                    await page.render({ canvasContext: cxt, viewport: viewport }).promise;
+                    return cvs.toDataURL();
+                } else if (tipo === 'epub') {
+                    const book = ePub(url);
+                    const coverUrl = await book.coverUrl();
+                    return coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=200&auto=format&fit=crop';
+                }
+            } catch (e) {
+                console.warn(`Erro extraindo capa de ${url}`);
+                return 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=200&auto=format&fit=crop';
+            }
+        }
+
+        async function renderizarEstante() {
+            const content = document.getElementById('library-content');
+            content.innerHTML = '';
+
+            for (let [categoria, livros] of Object.entries(biblioteca)) {
+                let sectionHTML = `
+                    <section class="animate-[fadeIn_0.5s_ease]">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-xl font-bold tracking-tight text-[var(--main-text)]">${categoria}</h2>
+                            <span class="text-xs font-semibold text-[var(--accent)] bg-[var(--accent)] bg-opacity-10 px-3 py-1 rounded-full">${livros.length}</span>
+                        </div>
+                        <div class="flex gap-4 overflow-x-auto hide-scroll pb-4 -mx-6 px-6 snap-x snap-mandatory" id="grid-${categoria.replace(/\s/g, '')}">
+                            <!-- Livros injetados aqui via JS para extração assíncrona da capa -->
+                        </div>
+                    </section>
+                `;
+                content.insertAdjacentHTML('beforeend', sectionHTML);
+
+                const grid = document.getElementById(`grid-${categoria.replace(/\s/g, '')}`);
+
+                for (let livro of livros) {
+                    let progresso = localStorage.getItem(`progress_${livro.url}`) || 0;
+                    let numProg = isNaN(progresso) ? 0 : progresso;
+                    let widthProg = livro.tipo === 'pdf' ? `${(numProg / 100) * 100}%` : `${numProg}%`; // Simplificado para ui
+
+                    let capa = await extrairCapa(livro.url, livro.tipo);
+
+                    let cardHTML = `
+                        <div class="book-card relative group rounded-2xl overflow-hidden cursor-pointer flex-none w-40 snap-start shadow-md hover:shadow-xl" 
+                             onclick="abrirLeitor('${livro.url}', '${livro.tipo}', '${livro.titulo}')">
+                            <div class="h-56 relative overflow-hidden bg-gray-200 dark:bg-gray-800">
+                                <img src="${capa}" alt="Capa" class="w-full h-full object-cover transition duration-500 group-hover:scale-110">
+                                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition"></div>
+                                <div class="absolute bottom-3 left-3 right-3">
+                                    <span class="text-[10px] font-bold text-white uppercase tracking-wider bg-[var(--accent)] px-2 py-0.5 rounded shadow">${livro.tipo.toUpperCase()}</span>
+                                    <h3 class="text-sm font-semibold text-white mt-1 leading-tight line-clamp-2">${livro.titulo}</h3>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-[var(--card-bg)]">
+                                <div class="w-full bg-gray-200 dark:bg-gray-700 h-1.5 rounded-full overflow-hidden">
+                                    <div class="bg-[var(--accent)] h-1.5 rounded-full" style="width: ${widthProg}"></div>
+                                </div>
+                                <p class="text-[10px] text-right mt-1 opacity-70 font-medium">${numProg}% lido</p>
+                            </div>
+                        </div>
+                    `;
+                    grid.insertAdjacentHTML('beforeend', cardHTML);
+                }
+            }
+        }
+
+        // --- 5. LÓGICA DO LEITOR (Index 12 fundido com UI do 13) ---
+        function abrirLeitor(url, tipo, titulo) {
+            urlAtual = url;
+            tipoAtual = tipo;
+            tituloAtual = titulo || url.split('/').pop();
+            
+            document.getElementById('reader-title').innerText = tituloAtual;
+            document.getElementById('view-library').classList.remove('active-view');
+            document.getElementById('view-library').classList.add('hidden-view');
+            document.getElementById('view-reader').classList.remove('hidden-view');
+            document.getElementById('view-reader').classList.add('active-view');
+
+            document.getElementById('pdf-render').classList.add('hidden');
+            document.getElementById('epub-render').classList.add('hidden');
+
+            // Set UI variables based on theme
+            applySavedTheme();
+
+            if (tipo === 'pdf') {
+                document.getElementById('pdf-render').classList.remove('hidden');
+                pdfjsLib.getDocument(url).promise.then(pdfDoc_ => {
+                    docPDF = pdfDoc_;
+                    let savedPage = parseInt(localStorage.getItem(`progress_${url}`));
+                    pageNum = savedPage ? savedPage : 1;
+                    renderizarPaginaPDF(pageNum);
+                });
+            } else if (tipo === 'epub') {
+                document.getElementById('epub-render').classList.remove('hidden');
+                renderizarePub(url);
+            }
+        }
+
+        // --- Lógica PDF ---
+        function renderizarPaginaPDF(num) {
+            isRendering = true;
+            docPDF.getPage(num).then(page => {
+                const container = document.getElementById('reader-container');
+                // Calculate scale to fit width
+                const unscaledViewport = page.getViewport({ scale: 1 });
+                currentScale = container.clientWidth / unscaledViewport.width;
+                const viewport = page.getViewport({ scale: currentScale });
+
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                const renderCtx = { canvasContext: ctx, viewport: viewport };
+                page.render(renderCtx).promise.then(() => {
+                    isRendering = false;
+                    if (pageNumPending !== null) {
+                        renderizarPaginaPDF(pageNumPending);
+                        pageNumPending = null;
+                    }
+                });
+
+                atualizarProgressoUI(num, docPDF.numPages);
+                localStorage.setItem(`progress_${urlAtual}`, num);
+            });
+        }
+
+        // --- Lógica ePub ---
+        function renderizarePub(url) {
+            bookEpub = ePub(url);
+            const container = document.getElementById('epub-render');
+            container.innerHTML = '';
+            
+            rendition = bookEpub.renderTo("epub-render", {
+                width: "100%",
+                height: "100%",
+                spread: "none",
+                manager: "continuous",
+                flow: "paginated"
+            });
+
+            // Re-apply theme to epub
+            const currentThemeId = localStorage.getItem('user_theme') || 'system';
+            applyTheme(currentThemeId);
+
+            let savedLocation = localStorage.getItem(`progress_${url}`);
+            if (savedLocation && isNaN(savedLocation)) { // Epub locations are cfi strings
+                rendition.display(savedLocation);
+            } else {
+                rendition.display();
+            }
+
+            bookEpub.ready.then(() => {
+                return bookEpub.locations.generate(1600); // Generate locations for progress calculation
+            }).then((locations) => {
+                rendition.on("relocated", function(location) {
+                    let percent = bookEpub.locations.percentageFromCfi(location.start.cfi);
+                    let percentage = Math.round(percent * 100);
+                    
+                    document.getElementById('reader-progress-text').innerText = `${percentage}% Concluído`;
+                    document.getElementById('progress-bar-fill').style.width = `${percentage}%`;
+                    
+                    localStorage.setItem(`progress_${urlAtual}`, location.start.cfi);
+                    localStorage.setItem(`progress_percent_${urlAtual}`, percentage); // Salva numérico para a estante
+                });
+            });
+        }
+
+        // --- Navegação Unificada ---
+        function proximaPagina() {
+            if (tipoAtual === 'pdf') {
+                if (pageNum >= docPDF.numPages) return;
+                pageNum++;
+                if (!isRendering) renderizarPaginaPDF(pageNum);
+                else pageNumPending = pageNum;
+            } else if (tipoAtual === 'epub' && rendition) {
+                rendition.next();
+            }
+        }
+
+        function paginaAnterior() {
+            if (tipoAtual === 'pdf') {
+                if (pageNum <= 1) return;
+                pageNum--;
+                if (!isRendering) renderizarPaginaPDF(pageNum);
+                else pageNumPending = pageNum;
+            } else if (tipoAtual === 'epub' && rendition) {
+                rendition.prev();
+            }
+        }
+
+        function atualizarProgressoUI(atual, total) {
+            let percent = Math.round((atual / total) * 100);
+            document.getElementById('reader-progress-text').innerText = `Página ${atual} de ${total}`;
+            document.getElementById('progress-bar-fill').style.width = `${percent}%`;
+            
+            // Corrige o bug de estante do pdf para exibir % na barra
+            localStorage.setItem(`progress_percent_${urlAtual}`, percent); 
+        }
+
+        // Teclado
+        document.addEventListener('keydown', (e) => {
+            if(document.getElementById('view-reader').classList.contains('active-view')) {
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') proximaPagina();
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') paginaAnterior();
+                if (e.key === 'Escape') voltarParaHome();
+            }
+        });
+
+        // Search Logic
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const term = e.target.value.toLowerCase();
+            document.querySelectorAll('.book-card').forEach(card => {
+                const title = card.querySelector('h3').innerText.toLowerCase();
+                if (title.includes(term)) card.parentElement.style.display = '';
+                else card.parentElement.style.display = 'none'; // hide wrapper snap div
+            });
+        });
+
+        // --- 6. PWA & INICIALIZAÇÃO ---
+        let deferredPrompt;
+        const installButton = document.getElementById('install-button');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installButton.classList.remove('hidden');
+        });
+
+        installButton.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            await deferredPrompt.userChoice;
+            deferredPrompt = null;
+            installButton.classList.add('hidden');
+        });
+
+        window.addEventListener('appinstalled', () => installButton.classList.add('hidden'));
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+        }
+
+        // INIT
+        applySavedTheme();
+        carregarBiblioteca();
+
     </script>
 </body>
 </html>
