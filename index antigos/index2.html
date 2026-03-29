@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Leitor Pro Ultra</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6" id="meta-theme-color">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    
+    <!-- Scripts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+    <style>
+        :root { 
+            --main-bg: #f8fafc; 
+            --main-text: #1e293b; 
+            --accent: #3b82f6; 
+            --glass-bg: rgba(255, 255, 255, 0.7);
+        }
+        
+        body { 
+            background-color: var(--main-bg); 
+            color: var(--main-text); 
+            transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.4s ease; 
+            font-family: 'Inter', sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .font-serif { font-family: 'Playfair Display', serif; }
+
+        /* Renderização do PDF */
+        #pdf-render { 
+            max-width: 100%; 
+            height: auto !important; 
+            border-radius: 12px; 
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+            transition: filter 0.4s ease;
+        }
+        
+        /* Efeito de Vidro Dinâmico */
+        .glass { 
+            background: var(--glass-bg); 
+            backdrop-filter: blur(15px); 
+            -webkit-backdrop-filter: blur(15px); 
+            border-bottom: 1px solid rgba(128,128,128,0.1); 
+        }
+
+        .hidden-view { display: none !important; }
+
+        /* Grid de Temas Otimizado */
+        .theme-dot { 
+            width: 100%; 
+            aspect-ratio: 1; 
+            border-radius: 50%; 
+            cursor: pointer; 
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 3px solid rgba(128,128,128,0.2);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .theme-dot:active { transform: scale(0.9); }
+        .theme-dot.active { 
+            border-color: var(--accent); 
+            transform: scale(1.1);
+            box-shadow: 0 0 0 2px var(--main-bg), 0 0 0 4px var(--accent);
+        }
+
+        /* Animações */
+        .view-transition { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Scrollbar Dinâmica */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.3); border-radius: 10px; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <!-- HEADER PRINCIPAL -->
+    <header class="glass sticky top-0 z-50 h-16 flex items-center shrink-0">
+        <div class="max-w-7xl mx-auto px-4 w-full flex justify-between items-center">
+            <div class="flex items-center gap-3 cursor-pointer group" onclick="voltarParaHome()">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shadow-lg group-hover:rotate-6 transition-transform">
+                    <i class="fa-solid fa-book-bookmark"></i>
+                </div>
+                <div>
+                    <h1 class="font-serif font-bold text-lg leading-none">Minha Estante</h1>
+                    <span class="text-[10px] uppercase tracking-[0.2em] opacity-50">Premium Reader</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button id="install-button" class="hidden px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-full shadow-md transition-all active:scale-95">
+                    <i class="fa-solid fa-download mr-1"></i> Instalar
+                </button>
+                <button onclick="abrirConfig()" class="w-10 h-10 rounded-full hover:bg-black/5 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-palette text-lg"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- TELA: BIBLIOTECA -->
+    <main id="view-library" class="flex-1 overflow-y-auto px-4 py-8 view-transition">
+        <div class="max-w-7xl mx-auto">
+            <header class="mb-10">
+                <h2 class="text-4xl font-serif font-bold mb-2">Continuar Leitura</h2>
+                <div class="h-1 w-20 bg-blue-600 rounded-full"></div>
+            </header>
+            
+            <div id="books-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+                <div class="col-span-full py-20 text-center">
+                    <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-500 opacity-20"></i>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- TELA: LEITOR -->
+    <div id="view-reader" class="hidden-view fixed inset-0 z-[60] bg-[var(--main-bg)] flex flex-col view-transition">
+        <header class="glass h-16 flex justify-between items-center px-4 shrink-0">
+            <button onclick="fecharLeitor()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/10 transition">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <div class="text-center flex-1 truncate px-4">
+                <h3 id="reader-title" class="text-sm font-bold truncate opacity-80">A carregar...</h3>
+            </div>
+            <div class="flex items-center gap-1">
+                <button onclick="abrirConfig()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/10 transition">
+                    <i class="fa-solid fa-palette"></i>
+                </button>
+                <button onclick="toggleZoom()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/10 transition">
+                    <i class="fa-solid fa-magnifying-glass-plus"></i>
+                </button>
+            </div>
+        </header>
+        
+        <main class="flex-1 overflow-y-auto pt-6 pb-24 relative" id="reader-scroll">
+            <div id="loader-reader" class="absolute inset-0 flex items-center justify-center bg-[var(--main-bg)] z-10 transition-opacity duration-300">
+                <i class="fa-solid fa-compass fa-spin text-4xl text-blue-500"></i>
+            </div>
+            <div class="flex justify-center px-4">
+                <canvas id="pdf-render" class="opacity-0"></canvas>
+            </div>
+        </main>
+
+        <nav class="glass absolute bottom-0 w-full h-20 flex items-center justify-center px-4 pb-2">
+            <div class="bg-black/5 rounded-full p-1.5 flex items-center gap-1 shadow-inner">
+                <button id="prev-page" class="w-12 h-12 rounded-full bg-white/10 shadow-sm flex items-center justify-center disabled:opacity-30 transition-transform active:scale-90">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <div class="flex items-center px-4 gap-2">
+                    <input type="number" id="page-num" class="w-12 text-center bg-transparent font-bold text-lg outline-none" value="1">
+                    <span class="opacity-30 font-light text-xl">/</span>
+                    <span id="page-count" class="font-medium opacity-60">0</span>
+                </div>
+                <button id="next-page" class="w-12 h-12 rounded-full bg-white/10 shadow-sm flex items-center justify-center disabled:opacity-30 transition-transform active:scale-90">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </nav>
+    </div>
+
+    <!-- MODAL: TEMAS E CONFIGURAÇÕES -->
+    <div id="modal-config" class="hidden-view fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-4">
+        <div class="bg-[var(--main-bg)] w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/10">
+            <div class="p-8 border-b border-black/5 flex justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-serif font-bold">Aparência</h2>
+                    <p class="text-xs opacity-50 uppercase tracking-widest mt-1">Escolha o seu estilo</p>
+                </div>
+                <button onclick="abrirConfig()" class="w-12 h-12 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-8 space-y-10 overflow-y-auto max-h-[65vh]">
+                <button onclick="applyTheme('system')" class="w-full p-5 rounded-2xl bg-blue-600 text-white flex items-center justify-between group relative overflow-hidden shadow-lg shadow-blue-500/20">
+                    <div class="relative z-10 flex items-center gap-4">
+                        <i class="fa-solid fa-circle-half-stroke text-xl"></i>
+                        <span class="font-bold">Modo Automático</span>
+                    </div>
+                    <i class="fa-solid fa-check opacity-50 group-hover:opacity-100 transition-opacity"></i>
+                </button>
+
+                <div>
+                    <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 mb-6">Paletas Disponíveis</h3>
+                    <div id="theme-grid" class="grid grid-cols-6 gap-6">
+                        <!-- Temas aqui -->
+                    </div>
+                </div>
+
+                <div class="pt-6 border-t border-black/5">
+                    <button onclick="limparTudo()" class="w-full p-4 rounded-2xl bg-red-500/10 text-red-500 font-bold flex items-center justify-center gap-3 hover:bg-red-500/20 transition-colors">
+                        <i class="fa-solid fa-trash-can"></i>
+                        Limpar Dados do Site
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const pastasDosLivros = ["Cartas-de-Um-Diabo-a-Seu-Aprend-C.-S.-Lewis"];
+
+        const themes = [
+            { id: 'light', name: 'Alvo', bg: '#ffffff', text: '#1e293b', pdf: 'none' },
+            { id: 'slate', name: 'Cinza', bg: '#f1f5f9', text: '#334155', pdf: 'none' },
+            { id: 'cream', name: 'Creme', bg: '#fffdf5', text: '#433422', pdf: 'sepia(0.2)' },
+            { id: 'sepia', name: 'Sépia', bg: '#f4ecd8', text: '#5b4636', pdf: 'sepia(0.6) contrast(0.9)' },
+            { id: 'vintage', name: 'Antigo', bg: '#e5d1b8', text: '#3e2a14', pdf: 'sepia(0.9) brightness(0.8)' },
+            { id: 'rose', name: 'Rosé', bg: '#fff1f2', text: '#881337', pdf: 'none' },
+            { id: 'mint', name: 'Menta', bg: '#f0fdf4', text: '#166534', pdf: 'none' },
+            { id: 'sky', name: 'Céu', bg: '#f0f9ff', text: '#075985', pdf: 'none' },
+            { id: 'dim', name: 'Suave', bg: '#15202b', text: '#ffffff', pdf: 'invert(0.9) hue-rotate(180deg)' },
+            { id: 'night', name: 'Noite', bg: '#0f172a', text: '#cbd5e1', pdf: 'invert(0.9) contrast(0.8)' },
+            { id: 'obsidian', name: 'Negro', bg: '#020617', text: '#94a3b8', pdf: 'invert(1) contrast(0.8)' },
+            { id: 'cyber', name: 'Cyber', bg: '#000000', text: '#00ff41', pdf: 'invert(1) hue-rotate(120deg)' }
+        ];
+
+        let listaDeLivros = [];
+        let currentPdf = null, pageNum = 1, pdfScale = 1.3, isRendering = false, currentBookId = null;
+
+        window.onload = () => {
+            initThemeGrid();
+            carregarBiblioteca();
+            applySavedTheme();
+            setupPWA();
+        };
+
+        async function carregarBiblioteca() {
+            const grid = document.getElementById('books-grid');
+            listaDeLivros = [];
+            for (const pasta of pastasDosLivros) {
+                try {
+                    const res = await fetch(`pdfs/${pasta}/dados.json`);
+                    if(res.ok) {
+                        const data = await res.json();
+                        data.folder = `pdfs/${pasta}/`;
+                        listaDeLivros.push(data);
+                    }
+                } catch(e) {}
+            }
+            renderVitrine();
+        }
+
+        function renderVitrine() {
+            const grid = document.getElementById('books-grid');
+            if(listaDeLivros.length === 0) {
+                grid.innerHTML = `<div class="col-span-full opacity-20 text-center py-20 italic">A carregar biblioteca...</div>`;
+                return;
+            }
+            grid.innerHTML = listaDeLivros.map(book => `
+                <div class="group cursor-pointer" onclick="abrirLeitor('${book.id}')">
+                    <div class="relative aspect-[2/3] rounded-3xl overflow-hidden shadow-md group-hover:shadow-2xl group-hover:-translate-y-2 transition-all duration-500 bg-gray-200">
+                        <img src="${book.capa}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/300x450'">
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <i class="fa-solid fa-play text-white text-3xl"></i>
+                        </div>
+                    </div>
+                    <h3 class="mt-4 font-bold text-sm leading-tight line-clamp-2">${book.titulo}</h3>
+                    <p class="text-[10px] opacity-40 uppercase font-bold mt-1">${book.autor}</p>
+                </div>
+            `).join('');
+        }
+
+        function abrirLeitor(id) {
+            const book = listaDeLivros.find(b => b.id === id);
+            if(!book) return;
+            currentBookId = id;
+            document.getElementById('view-reader').classList.remove('hidden-view');
+            document.getElementById('reader-title').textContent = book.titulo;
+            document.getElementById('loader-reader').style.opacity = '1';
+            loadPdf(book.folder + book.arquivoPdf);
+        }
+
+        function fecharLeitor() {
+            localStorage.setItem(`save_${currentBookId}`, pageNum);
+            document.getElementById('view-reader').classList.add('hidden-view');
+            currentPdf = null;
+        }
+
+        function loadPdf(url) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            pdfjsLib.getDocument(url).promise.then(pdf => {
+                currentPdf = pdf;
+                document.getElementById('page-count').textContent = pdf.numPages;
+                const saved = localStorage.getItem(`save_${currentBookId}`);
+                pageNum = (saved && parseInt(saved) <= pdf.numPages) ? parseInt(saved) : 1;
+                renderPage();
+            });
+        }
+
+        function renderPage() {
+            if(!currentPdf || isRendering) return;
+            isRendering = true;
+            currentPdf.getPage(pageNum).then(page => {
+                const canvas = document.getElementById('pdf-render');
+                const ctx = canvas.getContext('2d');
+                const viewport = page.getViewport({ scale: pdfScale });
+                const dpr = window.devicePixelRatio || 1;
+                canvas.height = viewport.height * dpr;
+                canvas.width = viewport.width * dpr;
+                canvas.style.width = viewport.width + "px";
+                canvas.style.height = viewport.height + "px";
+                ctx.scale(dpr, dpr);
+                page.render({ canvasContext: ctx, viewport: viewport }).promise.then(() => {
+                    isRendering = false;
+                    canvas.classList.add('opacity-100');
+                    document.getElementById('loader-reader').style.opacity = '0';
+                    document.getElementById('page-num').value = pageNum;
+                    document.getElementById('prev-page').disabled = pageNum <= 1;
+                    document.getElementById('next-page').disabled = pageNum >= currentPdf.numPages;
+                });
+            });
+        }
+
+        function toggleZoom() { pdfScale = pdfScale > 1.5 ? 1.0 : pdfScale + 0.3; renderPage(); }
+        document.getElementById('prev-page').onclick = () => { if(pageNum > 1) { pageNum--; renderPage(); } };
+        document.getElementById('next-page').onclick = () => { if(pageNum < currentPdf.numPages) { pageNum++; renderPage(); } };
+        document.getElementById('page-num').onchange = (e) => { 
+            let val = parseInt(e.target.value);
+            if(val >= 1 && val <= currentPdf.numPages) { pageNum = val; renderPage(); }
+        };
+
+        // AJUSTES DE TEMA E CONTRASTE
+        function initThemeGrid() {
+            const grid = document.getElementById('theme-grid');
+            grid.innerHTML = themes.map(t => `
+                <div class="flex flex-col items-center gap-2">
+                    <div onclick="applyTheme('${t.id}')" class="theme-dot" style="background:${t.bg}"></div>
+                    <span class="text-[8px] font-bold opacity-30 uppercase truncate w-full text-center">${t.name}</span>
+                </div>
+            `).join('');
+        }
+
+        function abrirConfig() {
+            document.getElementById('modal-config').classList.toggle('hidden-view');
+        }
+
+        function getLuminance(hex) {
+            const rgb = hex.replace('#','').match(/.{2}/g).map(x => parseInt(x, 16));
+            return (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
+        }
+
+        function applyTheme(id) {
+            let theme;
+            if(id === 'system') {
+                const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                theme = themes.find(t => t.id === (isDark ? 'night' : 'light'));
+            } else {
+                theme = themes.find(t => t.id === id);
+            }
+
+            // Aplicar Cores
+            document.documentElement.style.setProperty('--main-bg', theme.bg);
+            document.documentElement.style.setProperty('--main-text', theme.text);
+            document.getElementById('pdf-render').style.filter = theme.pdf;
+            
+            // Ajustar Vidro e Brilho dos Menus com base na Luminância
+            const lum = getLuminance(theme.bg);
+            if (lum < 0.3) { // Tema Escuro
+                document.documentElement.style.setProperty('--glass-bg', 'rgba(15, 23, 42, 0.7)');
+                document.documentElement.classList.add('dark');
+                // Forçar cor dos ícones para branco se for muito escuro
+                document.body.style.color = '#f1f5f9';
+            } else { // Tema Claro
+                document.documentElement.style.setProperty('--glass-bg', 'rgba(255, 255, 255, 0.7)');
+                document.documentElement.classList.remove('dark');
+                document.body.style.color = theme.text;
+            }
+
+            localStorage.setItem('user_theme', id);
+            
+            // Atualizar Indicador Ativo
+            document.querySelectorAll('.theme-dot').forEach(dot => dot.classList.remove('active'));
+            const idx = themes.findIndex(t => t.id === id);
+            if(idx >= 0) document.querySelectorAll('.theme-dot')[idx].classList.add('active');
+        }
+
+        function applySavedTheme() { applyTheme(localStorage.getItem('user_theme') || 'system'); }
+
+        function limparTudo() {
+            if(confirm("Deseja apagar o progresso e cache local?")) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        function voltarParaHome() {
+            if(!document.getElementById('view-reader').classList.contains('hidden-view')) fecharLeitor();
+            document.getElementById('view-library').scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function setupPWA() {
+            if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+        }
+    </script>
+</body>
+</html>
