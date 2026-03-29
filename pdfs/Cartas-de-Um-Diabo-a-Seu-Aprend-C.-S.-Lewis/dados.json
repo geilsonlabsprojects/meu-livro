@@ -1,0 +1,9 @@
+{
+  "id": "livro-01",
+  "titulo": "Cartas de um Diabo a seu Aprendiz",
+  "autor": "C.S. Lewis",
+  "capa": "https://i.ibb.co/PZ4GyNYy/91w74b-A251-L.jpg",
+  "arquivoPdf": "livro.pdf",
+  "compraLink": "https://www.amazon.com.br/Cartas-Um-Diabo-Seu-Aprendiz/dp/857860184X",
+  "preco": "R$ 41,90"
+}
